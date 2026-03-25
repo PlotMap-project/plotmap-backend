@@ -7,6 +7,7 @@ data class Project(
     val id: UUID = UUID.randomUUID(),
     val ownerId: UUID,
     val title: String,
+    val type: String,
     val description: String = "",
     val sourceText: String? = null,
     val createdAt: Instant = Instant.now(),
