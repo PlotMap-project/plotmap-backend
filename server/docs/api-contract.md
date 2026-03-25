@@ -24,7 +24,7 @@
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "email": "writer@example.com",
-  "displayName": "Лев Толстой",
+  "name": "Лев Толстой",
   "token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
@@ -82,6 +82,7 @@
 {
   "id": "project-uuid",
   "title": "Война и мир",
+  "type": "Сгенерированный",
   "createdAt": "2025-01-15T10:30:00Z"
 }
 ```
@@ -100,8 +101,7 @@
   {
     "id": "project-uuid",
     "title": "Война и мир",
-    "createdAt": "2025-01-15T10:30:00Z",
-    "eventCount": 25
+    "createdAt": "2025-01-15T10:30:00Z"
   }
 ]
 ```
