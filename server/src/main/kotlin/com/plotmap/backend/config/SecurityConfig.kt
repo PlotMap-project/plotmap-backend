@@ -6,9 +6,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 @Configuration
-class SecurityConfig {
+class SecurityConfig(
+    private val jwtAuthFilter: JwtAuthFilter
+) {
 
     @Bean
     fun passwordEncoder(): PasswordEncoder {
@@ -20,8 +23,14 @@ class SecurityConfig {
         http
             .csrf { it.disable() }
             .authorizeHttpRequests { auth ->
-                auth.anyRequest().permitAll()
+                auth.requestMatchers(
+                    "/api/v1/auth/**",
+                    "/api/v1/health"
+                ).permitAll()
+
+                auth.anyRequest().authenticated()
             }
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
