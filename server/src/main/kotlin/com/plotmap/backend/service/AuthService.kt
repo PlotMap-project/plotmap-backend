@@ -15,7 +15,8 @@ import org.springframework.stereotype.Service
 @Service
 class AuthService(
     private val userRepository: UserRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val jwtService: JwtService
 ) {
     fun register(request: RegisterRequest): AuthResponse {
         if (userRepository.existsByEmail(request.email)) {
@@ -46,7 +47,7 @@ class AuthService(
             userId = saved.id.toString(),
             email = saved.email,
             name = saved.name,
-            token = "temp-token-${saved.id}"
+            token = jwtService.generateToken(saved.id)
         )
     }
 
@@ -76,6 +77,6 @@ class AuthService(
         userId = this.id.toString(),
         email = this.email,
         name = this.name,
-        token = "temp-token-${this.id}"
+        token = jwtService.generateToken(this.id)
     )
 }
