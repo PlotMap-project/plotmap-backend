@@ -5,8 +5,8 @@ import com.plotmap.backend.dto.request.GenerateProjectRequest
 import com.plotmap.backend.dto.response.ProjectDetailResponse
 import com.plotmap.backend.dto.response.ProjectResponse
 import com.plotmap.backend.entity.Project
-import com.plotmap.backend.entity.UserToProject
 import com.plotmap.backend.entity.ProjectType
+import com.plotmap.backend.entity.UserToProject
 import com.plotmap.backend.exception.ProjectNotFoundException
 import com.plotmap.backend.repository.ProjectRepository
 import com.plotmap.backend.repository.UserToProjectRepository
@@ -20,22 +20,23 @@ class ProjectService(
     private val userToProjectRepository: UserToProjectRepository,
     private val graphGenerationService: GraphGenerationService
 ) {
-
     fun getProjectsByUserId(userId: UUID): List<ProjectResponse> {
-        return projectRepository.findAllByUserId(userId).map { it.toResponse() }
+        return projectRepository.findAllByUserId(userId).map { project ->
+            project.toResponse()
+        }
     }
 
     fun getProjectById(userId: UUID, projectId: UUID): ProjectDetailResponse {
+        ensureUserHasAccessToProject(userId, projectId)
+
         val project = projectRepository.findById(projectId)
             .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
 
-        // Пока генерируем сами а не через ии
         val sourceText = project.sourceText
 
-        val graph = if (sourceText != null) {
-            graphGenerationService.generateGraph(
-                projectId = project.id,
-                request = GenerateProjectRequest(
+        val generatedGraph = if (sourceText != null) {
+            graphGenerationService.generateProject(
+                GenerateProjectRequest(
                     name = project.title,
                     description = project.description,
                     text = sourceText
@@ -51,8 +52,8 @@ class ProjectService(
             type = project.type.name,
             description = project.description,
             sourceText = project.sourceText,
-            events = graph?.events ?: emptyList(),
-            connections = graph?.connections ?: emptyList(),
+            events = generatedGraph?.events ?: emptyList(),
+            connections = generatedGraph?.connections ?: emptyList(),
             createdAt = project.createdAt
         )
     }
@@ -64,16 +65,17 @@ class ProjectService(
             type = ProjectType.user_created,
             description = request.description
         )
-        val saved = projectRepository.save(project)
+
+        val savedProject = projectRepository.save(project)
 
         userToProjectRepository.save(
             UserToProject(
                 idUser = userId,
-                idProject = saved.id
+                idProject = savedProject.id
             )
         )
 
-        return saved.toResponse()
+        return savedProject.toResponse()
     }
 
     @Transactional
@@ -87,37 +89,45 @@ class ProjectService(
             description = request.description,
             sourceText = request.text
         )
-        val saved = projectRepository.save(project)
+
+        val savedProject = projectRepository.save(project)
 
         userToProjectRepository.save(
             UserToProject(
                 idUser = userId,
-                idProject = saved.id
+                idProject = savedProject.id
             )
         )
 
-        val graph = graphGenerationService.generateGraph(
-            projectId = saved.id,
-            request = request
-        )
+        val generatedProject = graphGenerationService.generateProject(request)
 
         return ProjectDetailResponse(
-            id = saved.id.toString(),
-            title = saved.title,
-            type = saved.type.name,
-            description = saved.description,
-            sourceText = saved.sourceText,
-            events = graph.events,
-            connections = graph.connections,
-            createdAt = saved.createdAt
+            id = savedProject.id.toString(),
+            title = savedProject.title,
+            type = savedProject.type.name,
+            description = savedProject.description,
+            sourceText = savedProject.sourceText,
+            events = generatedProject.events,
+            connections = generatedProject.connections,
+            createdAt = savedProject.createdAt
         )
     }
 
-    private fun Project.toResponse() = ProjectResponse(
-        id = this.id.toString(),
-        title = this.title,
-        type = this.type.name,
-        description = this.description,
-        createdAt = this.createdAt
-    )
+    private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {
+        val exists = userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)
+
+        if (!exists) {
+            throw ProjectNotFoundException("Project $projectId not found")
+        }
+    }
+
+    private fun Project.toResponse(): ProjectResponse {
+        return ProjectResponse(
+            id = this.id.toString(),
+            title = this.title,
+            type = this.type.name,
+            description = this.description,
+            createdAt = this.createdAt
+        )
+    }
 }
