@@ -1,0 +1,206 @@
+{
+  "YandexGPT Lite": {
+    "tests": [
+      {
+        "file": "test1.json",
+        "score": 60.0,
+        "time": 14.466501474380493,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test10.json",
+        "score": 52.5,
+        "time": 19.13701343536377,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test2.json",
+        "score": 52.5,
+        "time": 12.645568370819092,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test3.json",
+        "score": 48.0,
+        "time": 15.467884540557861,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test4.json",
+        "score": 48.0,
+        "time": 10.998837232589722,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test5.json",
+        "score": 51.0,
+        "time": 19.701565980911255,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test6.json",
+        "score": 54.5,
+        "time": 14.95043396949768,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 1,
+        "self_loops": 0
+      },
+      {
+        "file": "test7.json",
+        "score": 47.0,
+        "time": 16.386668920516968,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 1,
+        "self_loops": 0
+      },
+      {
+        "file": "test8.json",
+        "score": 50.0,
+        "time": 12.941402196884155,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test9.json",
+        "score": 0.0,
+        "time": 0.802325963973999,
+        "error": "JSON parse error: Expecting value: line 1 column 1 (char 0)"
+      }
+    ],
+    "avg_score": 46.4,
+    "avg_time": 13.7
+  },
+  "YandexGPT Pro": {
+    "tests": [
+      {
+        "file": "test1.json",
+        "score": 60.0,
+        "time": 12.956161260604858,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test10.json",
+        "score": 55.0,
+        "time": 18.246397733688354,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test2.json",
+        "score": 52.5,
+        "time": 13.252990245819092,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test3.json",
+        "score": 48.0,
+        "time": 19.316752195358276,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test4.json",
+        "score": 51.0,
+        "time": 17.10242009162903,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test5.json",
+        "score": 45.0,
+        "time": 14.921726942062378,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test6.json",
+        "score": 47.5,
+        "time": 14.914032697677612,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test7.json",
+        "score": 45.0,
+        "time": 15.831274032592773,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test8.json",
+        "score": 47.5,
+        "time": 17.266492128372192,
+        "events_recall": 0.0,
+        "chars_recall": 0.0,
+        "struct_fails": [],
+        "orphans": 0,
+        "self_loops": 0
+      },
+      {
+        "file": "test9.json",
+        "score": 0.0,
+        "time": 0.27876877784729004,
+        "error": "JSON parse error: Expecting value: line 1 column 1 (char 0)"
+      }
+    ],
+    "avg_score": 45.1,
+    "avg_time": 14.4
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Три медведя - линейный, легкий",
+  "text": "Жила-была девочка Маша. Однажды она пошла в лес за грибами. В лесу она заблудилась и набрела на избушку. В избушке жили три медведя: папа Михаил Потапович, мама Настасья Петровна и маленький Мишутка. Медведей не было дома — они ушли гулять. Маша зашла в дом, поела каши из трёх мисок, посидела на трёх стульях и уснула на кроватке Мишутки. Когда медведи вернулись домой, они обнаружили беспорядок. Мишутка нашёл Машу на своей кровати и закричал. Маша проснулась, испугалась и убежала домой через окно.",
+  "truth": {
+    "events": [
+      {"id": "event_1", "title": "Маша идёт в лес", "suggestedSystemRole": "REGULAR"},
+      {"id": "event_2", "title": "Маша заблудилась и нашла избушку", "suggestedSystemRole": "INCITING_INCIDENT"},
+      {"id": "event_3", "title": "Маша хозяйничает в доме медведей", "suggestedSystemRole": "RISING_ACTION"},
+      {"id": "event_4", "title": "Медведи возвращаются и находят беспорядок", "suggestedSystemRole": "CLIMAX"},
+      {"id": "event_5", "title": "Маша убегает через окно", "suggestedSystemRole": "RESOLUTION"}
+    ],
+    "edges": [
+      {"sourceEventId": "event_1", "targetEventId": "event_2", "type": "CAUSAL"},
+      {"sourceEventId": "event_2", "targetEventId": "event_3", "type": "TEMPORAL"},
+      {"sourceEventId": "event_3", "targetEventId": "event_4", "type": "CAUSAL"},
+      {"sourceEventId": "event_4", "targetEventId": "event_5", "type": "CAUSAL"}
+    ],
+    "characters": [
+      {"id": "char_1", "name": "Маша"},
+      {"id": "char_2", "name": "Михаил Потапович"},
+      {"id": "char_3", "name": "Настасья Петровна"},
+      {"id": "char_4", "name": "Мишутка"}
+    ],
+    "storyArcs": [
+      {"id": "arc_1", "name": "Приключение Маши"}
+    ]
+  },
+  "mandatory_events": [
+    "Маша заблудилась",
+    "Маша хозяйничает",
+    "Медведи возвращаются",
+    "Маша убегает"
+  ]
+}

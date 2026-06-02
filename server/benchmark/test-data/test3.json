@@ -1,0 +1,45 @@
+{
+  "name": "Фэнтези с параллельными линиями - средней сложности",
+  "text": "Пока принцесса Аэлита пробиралась через Тёмный лес в поисках Кристалла Жизни, на другом краю королевства её брат принц Дариан собирал армию против наступающих орков. Аэлита встретила в лесу старого мага Ольгерда, который рассказал, что Кристалл охраняет дракон Змарагд. Чтобы пройти к дракону, нужно пересечь Мёртвые болота. Маг дал ей амулет и указал путь. Тем временем Дариан узнал от разведчиков, что вождь орков Гронак заключил союз с тёмным колдуном Мораком. Морак обещал оркам магическую поддержку в обмен на Кристалл Жизни — тот самый, за которым отправилась Аэлита. Аэлита преодолела болота, потеряв амулет в трясине, и оказалась перед пещерой дракона. Змарагд оказался не злым — он веками хранил Кристалл от тёмных сил. Узнав о планах Морака, дракон отдал Кристалл Аэлите. Дариан принял бой с орками у стен столицы. Битва складывалась плохо — магия Морака была слишком сильна. Но в разгар сражения вернулась Аэлита верхом на Змарагде. Сила Кристалла нейтрализовала магию Морака, и орки обратились в бегство. Королевство было спасено.",
+  "truth": {
+    "events": [
+      {"id": "event_1", "title": "Аэлита входит в Тёмный лес", "suggestedSystemRole": "REGULAR"},
+      {"id": "event_2", "title": "Дариан собирает армию", "suggestedSystemRole": "REGULAR"},
+      {"id": "event_3", "title": "Встреча с магом Ольгердом", "suggestedSystemRole": "RISING_ACTION"},
+      {"id": "event_4", "title": "Союз орков и Морака", "suggestedSystemRole": "RISING_ACTION"},
+      {"id": "event_5", "title": "Аэлита преодолевает болота", "suggestedSystemRole": "RISING_ACTION"},
+      {"id": "event_6", "title": "Дракон отдаёт Кристалл Аэлите", "suggestedSystemRole": "CLIMAX"},
+      {"id": "event_7", "title": "Битва у стен столицы", "suggestedSystemRole": "CLIMAX"},
+      {"id": "event_8", "title": "Аэлита прилетает на драконе и спасает королевство", "suggestedSystemRole": "RESOLUTION"}
+    ],
+    "edges": [
+      {"sourceEventId": "event_1", "targetEventId": "event_2", "type": "PARALLEL"},
+      {"sourceEventId": "event_1", "targetEventId": "event_3", "type": "TEMPORAL"},
+      {"sourceEventId": "event_2", "targetEventId": "event_4", "type": "TEMPORAL"},
+      {"sourceEventId": "event_3", "targetEventId": "event_5", "type": "CAUSAL"},
+      {"sourceEventId": "event_4", "targetEventId": "event_7", "type": "CAUSAL"},
+      {"sourceEventId": "event_5", "targetEventId": "event_6", "type": "TEMPORAL"},
+      {"sourceEventId": "event_6", "targetEventId": "event_8", "type": "CAUSAL"},
+      {"sourceEventId": "event_7", "targetEventId": "event_8", "type": "CAUSAL"}
+    ],
+    "characters": [
+      {"id": "char_1", "name": "Аэлита"},
+      {"id": "char_2", "name": "Дариан"},
+      {"id": "char_3", "name": "Ольгерд"},
+      {"id": "char_4", "name": "Змарагд"},
+      {"id": "char_5", "name": "Гронак"},
+      {"id": "char_6", "name": "Морак"}
+    ],
+    "storyArcs": [
+      {"id": "arc_1", "name": "Квест Аэлиты"},
+      {"id": "arc_2", "name": "Война Дариана"}
+    ]
+  },
+  "mandatory_events": [
+    "Аэлита входит в лес",
+    "Дариан собирает армию",
+    "Союз орков",
+    "Дракон отдаёт Кристалл",
+    "Аэлита спасает королевство"
+  ]
+}
