@@ -1,13 +1,16 @@
 package com.plotmap.backend.service
 
+import com.plotmap.backend.config.YandexGptProperties
 import com.plotmap.backend.dto.request.CreateProjectRequest
 import com.plotmap.backend.dto.request.GenerateProjectRequest
+import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.dto.response.ProjectDetailResponse
 import com.plotmap.backend.dto.response.ProjectResponse
 import com.plotmap.backend.entity.Project
 import com.plotmap.backend.entity.ProjectType
 import com.plotmap.backend.entity.UserToProject
 import com.plotmap.backend.exception.ProjectNotFoundException
+import com.plotmap.backend.model.enum.GenerationMode
 import com.plotmap.backend.repository.ProjectRepository
 import com.plotmap.backend.repository.UserToProjectRepository
 import org.springframework.stereotype.Service
@@ -18,8 +21,11 @@ import java.util.UUID
 class ProjectService(
     private val projectRepository: ProjectRepository,
     private val userToProjectRepository: UserToProjectRepository,
-    private val graphGenerationService: GraphGenerationService
+    private val jobStore: JobStore,
+    private val generationJobProcessor: GenerationJobProcessor,
+    private val yandexGptProperties: YandexGptProperties
 ) {
+
     fun getProjectsByUserId(userId: UUID): List<ProjectResponse> {
         return projectRepository.findAllByUserId(userId).map { project ->
             project.toResponse()
@@ -32,28 +38,14 @@ class ProjectService(
         val project = projectRepository.findById(projectId)
             .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
 
-        val sourceText = project.sourceText
-
-        val generatedGraph = if (sourceText != null) {
-            graphGenerationService.generateProject(
-                GenerateProjectRequest(
-                    name = project.title,
-                    description = project.description,
-                    text = sourceText
-                )
-            )
-        } else {
-            null
-        }
-
         return ProjectDetailResponse(
             id = project.id.toString(),
             title = project.title,
             type = project.type.name,
             description = project.description,
             sourceText = project.sourceText,
-            events = generatedGraph?.events ?: emptyList(),
-            connections = generatedGraph?.connections ?: emptyList(),
+            events = emptyList(),
+            connections = emptyList(),
             createdAt = project.createdAt
         )
     }
@@ -82,7 +74,16 @@ class ProjectService(
     fun createProjectWithGeneration(
         userId: UUID,
         request: GenerateProjectRequest
-    ): ProjectDetailResponse {
+    ): JobStatusResponse {
+        require(request.text.isNotBlank()) { "Text must not be empty" }
+
+        if (request.text.length > yandexGptProperties.maxTextLength) {
+            throw IllegalArgumentException(
+                "Text is too long: ${request.text.length} characters. " +
+                        "Maximum allowed: ${yandexGptProperties.maxTextLength}"
+            )
+        }
+
         val project = Project(
             title = request.name,
             type = ProjectType.ai_generated,
@@ -99,17 +100,23 @@ class ProjectService(
             )
         )
 
-        val generatedProject = graphGenerationService.generateProject(request)
+        val job = jobStore.create(
+            projectId = savedProject.id,
+            userId = userId,
+            sourceText = request.text,
+            mode = GenerationMode.FULL
+        )
 
-        return ProjectDetailResponse(
-            id = savedProject.id.toString(),
-            title = savedProject.title,
-            type = savedProject.type.name,
-            description = savedProject.description,
-            sourceText = savedProject.sourceText,
-            events = generatedProject.events,
-            connections = generatedProject.connections,
-            createdAt = savedProject.createdAt
+        generationJobProcessor.process(job.id)
+
+        return JobStatusResponse(
+            jobId = job.id.toString(),
+            projectId = savedProject.id.toString(),
+            status = job.status.name,
+            errorMessage = job.errorMessage,
+            result = null,
+            createdAt = job.createdAt,
+            updatedAt = job.updatedAt
         )
     }
 

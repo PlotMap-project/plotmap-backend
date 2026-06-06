@@ -1,107 +1,150 @@
 package com.plotmap.backend.client
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.http.MediaType
+import com.plotmap.backend.config.YandexGptProperties
 import org.springframework.stereotype.Component
-import org.springframework.web.reactive.function.client.WebClient
-import reactor.core.publisher.Mono
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 
 @Component
 class YandexGptClient(
-    @Value("\${yandex.gpt.api-key}")
-    private val apiKey: String,
-
-    @Value("\${yandex.gpt.folder-id}")
-    private val folderId: String,
-
-    @Value("\${yandex.gpt.model-uri}")
-    private val modelUri: String,
-
-    @Value("\${yandex.gpt.structured-output-enabled:true}")
-    private val structuredOutputEnabled: Boolean,
-
+    private val properties: YandexGptProperties,
     private val objectMapper: ObjectMapper
 ) {
-    private val log = LoggerFactory.getLogger(javaClass)
 
-    private val webClient = WebClient.builder()
-        .baseUrl("https://llm.api.cloud.yandex.net/foundationModels/v1/completion")
-        .defaultHeader("Authorization", "Api-Key $apiKey")
-        .defaultHeader("x-folder-id", folderId)
-        .build()
+    private val httpClient = HttpClient.newBuilder().build()
 
-    fun completeWithJson(
-        systemPrompt: String,
-        userPrompt: String,
-        responseSchema: JsonNode?
-    ): String {
-        val requestBody = mutableMapOf<String, Any>(
-            "modelUri" to modelUri,
+    fun generateRawGraphJson(text: String): String {
+        require(text.isNotBlank()) { "Text must not be empty" }
+        require(properties.apiKey.isNotBlank()) { "Yandex GPT API key is not configured" }
+        require(properties.folderId.isNotBlank()) { "Yandex GPT folder id is not configured" }
+        require(properties.modelUri.isNotBlank()) { "Yandex GPT model uri is not configured" }
+
+        val requestBody = mapOf(
+            "modelUri" to properties.modelUri,
             "completionOptions" to mapOf(
                 "stream" to false,
-                "temperature" to 0.2,
-                "maxTokens" to 4000
+                "temperature" to 0.3,
+                "maxTokens" to "4000"
             ),
             "messages" to listOf(
                 mapOf(
                     "role" to "system",
-                    "text" to systemPrompt
+                    "text" to buildSystemPrompt()
                 ),
                 mapOf(
                     "role" to "user",
-                    "text" to userPrompt
+                    "text" to text
                 )
             )
         )
 
-        if (structuredOutputEnabled && responseSchema != null) {
-            requestBody["responseFormat"] = mapOf(
-                "type" to "json_schema",
-                "jsonSchema" to mapOf(
-                    "name" to "plotmap_project_generation",
-                    "schema" to responseSchema
+        val httpRequest = HttpRequest.newBuilder()
+            .uri(URI.create("https://llm.api.cloud.yandex.net/foundationModels/v1/completion"))
+            .header("Authorization", "Api-Key ${properties.apiKey}")
+            .header("x-folder-id", properties.folderId)
+            .header("Content-Type", "application/json")
+            .POST(
+                HttpRequest.BodyPublishers.ofString(
+                    objectMapper.writeValueAsString(requestBody)
                 )
+            )
+            .build()
+
+        val response = httpClient.send(
+            httpRequest,
+            HttpResponse.BodyHandlers.ofString()
+        )
+
+        if (response.statusCode() < 200 || response.statusCode() > 299) {
+            throw IllegalStateException(
+                "Yandex GPT request failed: ${response.statusCode()} ${response.body()}"
             )
         }
 
-        val rawResponse = webClient.post()
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(requestBody)
-            .exchangeToMono { response ->
-                response.bodyToMono(String::class.java).flatMap { body ->
+        val root = objectMapper.readTree(response.body())
 
-                    if (response.statusCode().isError) {
-                        return@flatMap Mono.error(
-                            RuntimeException(
-                                "YandexGPT error ${response.statusCode()}: $body"
-                            )
-                        )
-                    }
-
-                    Mono.just(body)
-                }
-            }
-            .block()
-
-        log.info("YandexGPT raw HTTP response: {}", rawResponse)
-
-        val root = objectMapper.readTree(rawResponse)
-
-        val text = root
-            .path("result")
+        return root.path("result")
             .path("alternatives")
             .path(0)
             .path("message")
             .path("text")
-            .asText(null)
+            .asText()
+            .trim()
+    }
 
-        require(!text.isNullOrBlank()) {
-            "YandexGPT returned empty message text"
+    private fun buildSystemPrompt(): String {
+        return """
+        Ты — литературный аналитик. Проанализируй художественный текст и извлеки из него сюжетный граф.
+
+        Верни ТОЛЬКО валидный JSON.
+        Не используй markdown.
+        Не добавляй пояснения.
+        Не добавляй текст до JSON или после JSON.
+        Не добавляй никакие поля, которых нет в схеме ниже.
+
+        Схема ответа:
+        {
+          "events": [
+            {
+              "id": "event_1",
+              "title": "string",
+              "description": "string",
+              "suggestedSystemRole": "INCITING_INCIDENT|RISING_ACTION|CLIMAX|FALLING_ACTION|RESOLUTION|PLOT_TWIST|REGULAR",
+              "impactLevel": 1
+            }
+          ],
+          "edges": [
+            {
+              "sourceEventId": "event_1",
+              "targetEventId": "event_2",
+              "type": "CAUSAL|TEMPORAL|PARALLEL|CONTRADICTION",
+              "strength": 5
+            }
+          ],
+          "characters": [
+            {
+              "id": "char_1",
+              "name": "string",
+              "description": "string"
+            }
+          ],
+          "storyArcs": [
+            {
+              "id": "arc_1",
+              "name": "string",
+              "description": "string"
+            }
+          ]
         }
 
-        return text
+        Обязательные правила:
+        - suggestedSystemRole строго одно из: INCITING_INCIDENT, RISING_ACTION, CLIMAX, FALLING_ACTION, RESOLUTION, PLOT_TWIST, REGULAR
+        - type строго одно из: CAUSAL, TEMPORAL, PARALLEL, CONTRADICTION
+        - impactLevel — целое число от 1 до 10
+        - strength — целое число от 1 до 10
+        - id событий: event_1, event_2, event_3, ...
+        - id персонажей: char_1, char_2, ...
+        - id арок: arc_1, arc_2, ...
+        - sourceEventId и targetEventId должны ссылаться только на существующие events.id
+        - не создавай self-loop: sourceEventId не должен совпадать с targetEventId
+        - выделяй только значимые события сюжета
+        - создай от 5 до 12 событий, если текст достаточно содержательный
+        - каждое событие желательно связать хотя бы одним ребром
+
+        Запрещено:
+        - не добавляй поля userNotes
+        - не добавляй поля color
+        - не добавляй поля status
+        - не добавляй поля justification
+        - не добавляй поля source
+        - не добавляй поля level
+        - не добавляй поля orderInLevel
+        - не добавляй никакие другие поля вне указанной схемы
+
+        Верни только JSON по этой схеме.
+    """.trimIndent()
     }
 }
