@@ -93,7 +93,12 @@ class YandexGptClient(
               "title": "string",
               "description": "string",
               "suggestedSystemRole": "INCITING_INCIDENT|RISING_ACTION|CLIMAX|FALLING_ACTION|RESOLUTION|PLOT_TWIST|REGULAR",
-              "impactLevel": 1
+              "impactLevel": 1,
+              "level": 0,
+              "orderInLevel": 0,
+              "color": "#FAFAD2",
+              "characterIds": ["char_1"],
+              "storyArcIds": ["arc_1"]
             }
           ],
           "edges": [
@@ -123,25 +128,31 @@ class YandexGptClient(
         Обязательные правила:
         - suggestedSystemRole строго одно из: INCITING_INCIDENT, RISING_ACTION, CLIMAX, FALLING_ACTION, RESOLUTION, PLOT_TWIST, REGULAR
         - type строго одно из: CAUSAL, TEMPORAL, PARALLEL, CONTRADICTION
-        - impactLevel — целое число от 1 до 10
-        - strength — целое число от 1 до 10
+        - impactLevel — целое число от 1 до 10, показатель влияния события на сюжет
+        - level — целое число, временной слой события (0 — самые ранние, чем больше — тем позже)
+        - события, происходящие параллельно или независимо друг от друга, должны иметь одинаковый level
+        - orderInLevel — порядок события внутри своего level, начинается с 0
+        - в каждом level orderInLevel начинается с 0 и идёт без пропусков: 0, 1, 2, ...
+        - color — выбери СТРОГО из набора: #FAFAD2, #FFEFD5, #FFE4B5, #FFDAB9, #EEE8AA
+        - если не уверен в цвете — используй #FAFAD2
+        - цвет может отражать сюжетную арку или роль события
+        - strength — целое число от 1 до 10, показатель степени данной связи между событиями
         - id событий: event_1, event_2, event_3, ...
         - id персонажей: char_1, char_2, ...
         - id арок: arc_1, arc_2, ...
         - sourceEventId и targetEventId должны ссылаться только на существующие events.id
         - не создавай self-loop: sourceEventId не должен совпадать с targetEventId
+        - в characterIds каждого event указывай ТОЛЬКО id из массива characters
+        - в storyArcIds каждого event указывай ТОЛЬКО id из массива storyArcs
+        - если в событии нет персонажей, characterIds должен быть пустым массивом []
+        - если событие не относится ни к одной арке, storyArcIds должен быть пустым массивом []
         - выделяй только значимые события сюжета
         - создай от 5 до 12 событий, если текст достаточно содержательный
         - каждое событие желательно связать хотя бы одним ребром
+        - выдели всех значимых персонажей и помести их в characters
+        - выдели сюжетные арки (основные сюжетные линии) и помести их в storyArcs
 
         Запрещено:
-        - не добавляй поля userNotes
-        - не добавляй поля color
-        - не добавляй поля status
-        - не добавляй поля justification
-        - не добавляй поля source
-        - не добавляй поля level
-        - не добавляй поля orderInLevel
         - не добавляй никакие другие поля вне указанной схемы
 
         Верни только JSON по этой схеме.

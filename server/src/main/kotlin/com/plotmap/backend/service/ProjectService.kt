@@ -11,8 +11,8 @@ import com.plotmap.backend.entity.ProjectType
 import com.plotmap.backend.entity.UserToProject
 import com.plotmap.backend.exception.ProjectNotFoundException
 import com.plotmap.backend.model.enum.GenerationMode
-import com.plotmap.backend.repository.ProjectRepository
-import com.plotmap.backend.repository.UserToProjectRepository
+import com.plotmap.backend.repository.jpa.ProjectRepository
+import com.plotmap.backend.repository.jpa.UserToProjectRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID

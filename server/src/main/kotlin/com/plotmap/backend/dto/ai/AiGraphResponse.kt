@@ -12,7 +12,12 @@ data class AiEventDto(
     val title: String,
     val description: String = "",
     val suggestedSystemRole: String = "REGULAR",
-    val impactLevel: Int = 5
+    val impactLevel: Int = 5,
+    val level: Int = 0,
+    val orderInLevel: Int = 0,
+    val color: String = "#FAFAD2",
+    val characterIds: List<String> = emptyList(),
+    val storyArcIds: List<String> = emptyList()
 )
 
 data class AiEdgeDto(

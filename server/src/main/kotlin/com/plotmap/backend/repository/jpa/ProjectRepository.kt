@@ -1,4 +1,4 @@
-package com.plotmap.backend.repository
+package com.plotmap.backend.repository.jpa
 
 import com.plotmap.backend.entity.Project
 import org.springframework.data.jpa.repository.JpaRepository

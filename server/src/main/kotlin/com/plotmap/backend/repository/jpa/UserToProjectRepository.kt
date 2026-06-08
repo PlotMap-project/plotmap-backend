@@ -1,4 +1,4 @@
-package com.plotmap.backend.repository
+package com.plotmap.backend.repository.jpa
 
 import com.plotmap.backend.entity.UserToProject
 import com.plotmap.backend.entity.UserToProjectId
