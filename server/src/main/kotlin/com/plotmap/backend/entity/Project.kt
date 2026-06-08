@@ -23,7 +23,7 @@ class Project(
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
-    val type: ProjectType = ProjectType.user_created,
+    val type: ProjectType = ProjectType.USER_CREATED,
 
     val description: String = "",
 
