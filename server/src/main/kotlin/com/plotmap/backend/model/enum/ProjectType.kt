@@ -1,4 +1,4 @@
-package com.plotmap.backend.entity
+package com.plotmap.backend.model.enum
 
 enum class ProjectType {
     USER_CREATED,

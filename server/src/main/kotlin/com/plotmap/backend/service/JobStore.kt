@@ -1,7 +1,7 @@
 package com.plotmap.backend.service
 
 import com.plotmap.backend.dto.ai.AiGraphResponse
-import com.plotmap.backend.model.entity.GenerationJob
+import com.plotmap.backend.model.domain.GenerationJob
 import com.plotmap.backend.model.enum.GenerationMode
 import com.plotmap.backend.model.enum.JobStatus
 import org.springframework.stereotype.Component

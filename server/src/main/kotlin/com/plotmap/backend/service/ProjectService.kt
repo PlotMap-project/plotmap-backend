@@ -6,9 +6,9 @@ import com.plotmap.backend.dto.request.GenerateProjectRequest
 import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.dto.response.ProjectDetailResponse
 import com.plotmap.backend.dto.response.ProjectResponse
-import com.plotmap.backend.entity.Project
-import com.plotmap.backend.entity.ProjectType
-import com.plotmap.backend.entity.UserToProject
+import com.plotmap.backend.model.entity.Project
+import com.plotmap.backend.model.enum.ProjectType
+import com.plotmap.backend.model.entity.UserToProject
 import com.plotmap.backend.exception.ProjectNotFoundException
 import com.plotmap.backend.model.enum.GenerationMode
 import com.plotmap.backend.repository.jpa.ProjectRepository
@@ -54,7 +54,7 @@ class ProjectService(
     fun createProject(userId: UUID, request: CreateProjectRequest): ProjectResponse {
         val project = Project(
             title = request.title,
-            type = ProjectType.user_created,
+            type = ProjectType.USER_CREATED,
             description = request.description
         )
 
@@ -86,7 +86,7 @@ class ProjectService(
 
         val project = Project(
             title = request.name,
-            type = ProjectType.ai_generated,
+            type = ProjectType.AI_GENERATED,
             description = request.description,
             sourceText = request.text
         )

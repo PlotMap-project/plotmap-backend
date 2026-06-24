@@ -1,6 +1,6 @@
 package com.plotmap.backend.repository.jpa
 
-import com.plotmap.backend.entity.Project
+import com.plotmap.backend.model.entity.Project
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import java.util.UUID

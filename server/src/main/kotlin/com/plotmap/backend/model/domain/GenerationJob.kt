@@ -1,4 +1,4 @@
-package com.plotmap.backend.model.entity
+package com.plotmap.backend.model.domain
 
 import com.plotmap.backend.model.enum.GenerationMode
 import com.plotmap.backend.model.enum.JobStatus
