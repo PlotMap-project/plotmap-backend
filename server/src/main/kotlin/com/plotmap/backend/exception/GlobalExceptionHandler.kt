@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.server.ResponseStatusException
 
 data class ErrorResponse(
     val error: String,
@@ -61,6 +62,18 @@ class GlobalExceptionHandler {
                 ErrorResponse(
                     "INTERNAL_ERROR",
                     e.message ?: "Internal error, god left us"
+                )
+            )
+    }
+
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatusException(e: ResponseStatusException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(e.statusCode)
+            .body(
+                ErrorResponse(
+                    e.statusCode.toString(),
+                    e.reason ?: "Request failed"
                 )
             )
     }
