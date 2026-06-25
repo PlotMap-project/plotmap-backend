@@ -114,7 +114,8 @@ class YandexGptClient(
             {
               "id": "char_1",
               "name": "string",
-              "description": "string"
+              "description": "string",
+              "role": "PROTAGONIST|ANTAGONIST|MAJOR|SUPPORTING|EPISODIC"
             }
           ],
           "storyArcs": [
@@ -152,6 +153,7 @@ class YandexGptClient(
         - создай от 5 до 12 событий, если текст достаточно содержательный
         - каждое событие желательно связать хотя бы одним ребром
         - выдели всех значимых персонажей и помести их в characters
+        - role персонажа строго одно из: PROTAGONIST, ANTAGONIST, MAJOR, SUPPORTING, EPISODIC
         - выдели сюжетные арки (основные сюжетные линии) и помести их в storyArcs
 
         Запрещено:

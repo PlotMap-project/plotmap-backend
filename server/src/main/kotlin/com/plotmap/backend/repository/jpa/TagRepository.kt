@@ -7,4 +7,6 @@ import java.util.UUID
 interface TagRepository : JpaRepository<Tag, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<Tag>
+
+    fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }

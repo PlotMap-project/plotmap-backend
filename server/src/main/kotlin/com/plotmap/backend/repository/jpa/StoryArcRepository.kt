@@ -7,4 +7,6 @@ import java.util.UUID
 interface StoryArcRepository : JpaRepository<StoryArc, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<StoryArc>
+
+    fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }

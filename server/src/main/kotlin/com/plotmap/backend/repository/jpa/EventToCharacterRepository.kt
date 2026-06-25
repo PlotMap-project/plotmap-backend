@@ -12,4 +12,6 @@ interface EventToCharacterRepository : JpaRepository<EventToCharacter, EventToCh
     fun findAllByIdProject(idProject: UUID): List<EventToCharacter>
 
     fun deleteAllByIdProject(idProject: UUID)
+
+    fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
 }

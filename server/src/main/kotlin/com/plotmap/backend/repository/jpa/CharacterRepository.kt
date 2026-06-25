@@ -7,4 +7,6 @@ import java.util.UUID
 interface CharacterRepository : JpaRepository<Character, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<Character>
+
+    fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }

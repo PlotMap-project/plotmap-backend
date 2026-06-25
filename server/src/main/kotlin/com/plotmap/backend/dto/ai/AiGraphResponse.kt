@@ -31,7 +31,8 @@ data class AiEdgeDto(
 data class AiCharacterDto(
     val id: String,
     val name: String,
-    val description: String = ""
+    val description: String = "",
+    val role: String = "SUPPORTING"
 )
 
 data class AiStoryArcDto(

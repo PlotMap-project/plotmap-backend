@@ -7,8 +7,10 @@ import com.plotmap.backend.model.entity.EventEdge
 import com.plotmap.backend.model.entity.EventToCharacter
 import com.plotmap.backend.model.entity.StoryArc
 import com.plotmap.backend.model.entity.StoryArcToEvent
+import com.plotmap.backend.model.enum.CharacterRole
 import com.plotmap.backend.model.enum.ConnectionType
 import com.plotmap.backend.model.enum.EventSource
+import com.plotmap.backend.model.enum.EventStatus
 import com.plotmap.backend.model.enum.SystemEventRole
 import com.plotmap.backend.repository.jpa.CharacterRepository
 import com.plotmap.backend.repository.jpa.EventEdgeRepository
@@ -50,7 +52,8 @@ class AiProcessingService(
                 Character(
                     projectId = projectId,
                     name = aiCharacter.name.trim(),
-                    description = aiCharacter.description.trim()
+                    description = aiCharacter.description.trim(),
+                    role = parseCharacterRole(aiCharacter.role)
                 )
             )
             characterIdMap[aiCharacter.id] = saved.id
@@ -74,6 +77,7 @@ class AiProcessingService(
                     title = aiEvent.title.trim(),
                     description = aiEvent.description.trim(),
                     suggestedSystemRole = parseSystemRole(aiEvent.suggestedSystemRole),
+                    status = EventStatus.IMPLEMENTED,
                     impactLevel = aiEvent.impactLevel.coerceIn(1, 10),
                     level = aiEvent.level.coerceAtLeast(0),
                     orderInLevel = aiEvent.orderInLevel.coerceAtLeast(0),
@@ -150,5 +154,14 @@ class AiProcessingService(
         if (value.isNullOrBlank()) return null
         val trimmed = value.trim()
         return if (Regex("^#[0-9A-Fa-f]{6}$").matches(trimmed)) trimmed else null
+    }
+
+    private fun parseCharacterRole(value: String?): CharacterRole {
+        if (value.isNullOrBlank()) return CharacterRole.SUPPORTING
+        return try {
+            CharacterRole.valueOf(value.trim())
+        } catch (_: IllegalArgumentException) {
+            CharacterRole.SUPPORTING
+        }
     }
 }

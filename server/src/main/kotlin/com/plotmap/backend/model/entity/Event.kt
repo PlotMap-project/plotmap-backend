@@ -18,59 +18,59 @@ import java.util.UUID
 @Table(name = "events")
 class Event(
     @Id
-    val id: UUID = UUID.randomUUID(),
+    var id: UUID = UUID.randomUUID(),
 
     @Column(name = "project_id", nullable = false)
-    val projectId: UUID,
+    var projectId: UUID,
 
     @Column(nullable = false)
-    val title: String,
+    var title: String,
 
     @Column(columnDefinition = "text")
-    val description: String = "",
+    var description: String = "",
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "suggested_system_role")
-    val suggestedSystemRole: SystemEventRole? = null,
+    var suggestedSystemRole: SystemEventRole? = null,
 
     @Column(name = "impact_level", nullable = false)
-    val impactLevel: Int = 5,
+    var impactLevel: Int = 5,
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
-    val status: EventStatus = EventStatus.PLANNED,
+    var status: EventStatus = EventStatus.PLANNED,
 
     @Column(name = "user_notes", columnDefinition = "text")
-    val userNotes: String = "",
+    var userNotes: String = "",
 
     @Column(name = "level")
-    val level: Int = 0,
+    var level: Int = 0,
 
     @Column(name = "order_in_level")
-    val orderInLevel: Int = 0,
+    var orderInLevel: Int = 0,
 
     @Column(name = "custom_position_x")
-    val customPositionX: Double? = null,
+    var customPositionX: Double? = null,
 
     @Column(name = "custom_position_y")
-    val customPositionY: Double? = null,
+    var customPositionY: Double? = null,
 
     @Column(name = "color")
-    val color: String? = null,
+    var color: String? = null,
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
-    val source: EventSource = EventSource.USER_CREATED,
+    var source: EventSource = EventSource.USER_CREATED,
 
     @Column(name = "source_context", nullable = false, columnDefinition = "TEXT")
     var sourceContext: String = "",
 
     @Column(name = "created_at", nullable = false)
-    val createdAt: Instant = Instant.now(),
+    var createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now()
 )

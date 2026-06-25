@@ -9,7 +9,11 @@ interface StoryArcToEventRepository : JpaRepository<StoryArcToEvent, StoryArcToE
 
     fun findAllByIdArc(idArc: UUID): List<StoryArcToEvent>
 
+    fun findAllByIdEvent(idEvent: UUID): List<StoryArcToEvent>
+
     fun findAllByIdProject(idProject: UUID): List<StoryArcToEvent>
+
+    fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
 
     fun deleteAllByIdProject(idProject: UUID)
 }

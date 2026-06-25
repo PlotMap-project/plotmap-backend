@@ -1,9 +1,14 @@
 package com.plotmap.backend.model.entity
 
+import com.plotmap.backend.model.enum.CharacterRole
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.util.UUID
 
@@ -21,6 +26,11 @@ class Character(
 
     @Column(nullable = false, columnDefinition = "TEXT")
     var description: String = "",
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false)
+    var role: CharacterRole = CharacterRole.SUPPORTING,
 
     @Column(length = 7)
     var color: String? = null,

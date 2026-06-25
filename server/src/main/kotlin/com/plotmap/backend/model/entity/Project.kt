@@ -19,18 +19,19 @@ class Project(
     val id: UUID = UUID.randomUUID(),
 
     @Column(nullable = false)
-    val title: String,
+    var title: String,
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     val type: ProjectType = ProjectType.MANUAL,
 
-    val description: String = "",
+    @Column(nullable = false, columnDefinition = "TEXT")
+    var description: String = "",
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now()
 )
