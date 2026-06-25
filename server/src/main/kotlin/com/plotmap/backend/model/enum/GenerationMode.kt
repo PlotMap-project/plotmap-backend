@@ -1,7 +1,6 @@
 package com.plotmap.backend.model.enum
 
 enum class GenerationMode {
-    FULL,
-    APPEND,
-    REVISE
+    INITIAL_GENERATION,
+    APPEND_CHAPTER
 }

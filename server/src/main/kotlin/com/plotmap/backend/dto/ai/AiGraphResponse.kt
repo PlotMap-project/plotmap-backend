@@ -16,6 +16,7 @@ data class AiEventDto(
     val level: Int = 0,
     val orderInLevel: Int = 0,
     val color: String = "#FAFAD2",
+    val sourceContext: String = "",
     val characterIds: List<String> = emptyList(),
     val storyArcIds: List<String> = emptyList()
 )
@@ -24,7 +25,7 @@ data class AiEdgeDto(
     val sourceEventId: String,
     val targetEventId: String,
     val type: String = "TEMPORAL",
-    val strength: Int = 5
+    val description: String = ""
 )
 
 data class AiCharacterDto(

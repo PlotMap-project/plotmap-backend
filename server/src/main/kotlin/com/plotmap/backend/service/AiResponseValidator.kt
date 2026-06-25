@@ -24,6 +24,8 @@ class AiResponseValidator {
             "#FAFAD2", "#FFEFD5", "#FFE4B5", "#FFDAB9", "#EEE8AA"
         )
         private const val DEFAULT_COLOR = "#FAFAD2"
+        private const val MAX_EDGE_DESCRIPTION_LENGTH = 500
+        private const val MAX_SOURCE_CONTEXT_LENGTH = 500
     }
 
     fun validate(response: AiGraphResponse): ValidationResult {
@@ -96,12 +98,15 @@ class AiResponseValidator {
                 }
             }
 
+            val fixedSourceContext = event.sourceContext.trim().take(MAX_SOURCE_CONTEXT_LENGTH)
+
             event.copy(
                 suggestedSystemRole = fixedRole,
                 impactLevel = fixedImpact,
                 color = fixedColor,
                 level = fixedLevel,
-                orderInLevel = fixedOrderInLevel
+                orderInLevel = fixedOrderInLevel,
+                sourceContext = fixedSourceContext
             )
         }
 
@@ -150,12 +155,14 @@ class AiResponseValidator {
                         fixedType = "TEMPORAL"
                     }
 
-                    val fixedStrength = edge.strength.coerceIn(1, 10)
+                    val fixedDescription = edge.description.trim().take(MAX_EDGE_DESCRIPTION_LENGTH)
 
                     validEdges.add(
                         edge.copy(
+                            sourceEventId = edge.sourceEventId.trim(),
+                            targetEventId = edge.targetEventId.trim(),
                             type = fixedType,
-                            strength = fixedStrength
+                            description = fixedDescription
                         )
                     )
                 }

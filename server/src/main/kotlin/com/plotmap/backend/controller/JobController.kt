@@ -2,7 +2,8 @@ package com.plotmap.backend.controller
 
 import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.exception.InvalidCredentialsException
-import com.plotmap.backend.service.JobStore
+import com.plotmap.backend.repository.jpa.GenerationJobRepository
+import com.plotmap.backend.repository.jpa.UserToProjectRepository
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -15,7 +16,8 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/v1/jobs")
 class JobController(
-    private val jobStore: JobStore
+    private val generationJobRepository: GenerationJobRepository,
+    private val userToProjectRepository: UserToProjectRepository
 ) {
     // GET /api/v1/jobs/{jobId}
     @GetMapping("/{jobId}")
@@ -26,27 +28,28 @@ class JobController(
         val userId = getUserIdFromRequest(request)
         val parsedJobId = UUID.fromString(jobId)
 
-        val job = jobStore.get(parsedJobId)
-            ?: throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Job $jobId not found"
-            )
+        val job = generationJobRepository.findById(parsedJobId)
+            .orElseThrow {
+                ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Job $jobId not found"
+                )
+            }
 
-        if (job.userId != userId) {
+        val hasAccess = userToProjectRepository.existsByIdUserAndIdProject(userId, job.projectId)
+        if (!hasAccess) {
             throw ResponseStatusException(
                 HttpStatus.FORBIDDEN,
                 "Access denied"
             )
         }
 
-        val result = jobStore.getResult(parsedJobId)
-
         return JobStatusResponse(
             jobId = job.id.toString(),
             projectId = job.projectId.toString(),
             status = job.status.name,
             errorMessage = job.errorMessage,
-            result = result,
+            result = null,
             createdAt = job.createdAt,
             updatedAt = job.updatedAt
         )

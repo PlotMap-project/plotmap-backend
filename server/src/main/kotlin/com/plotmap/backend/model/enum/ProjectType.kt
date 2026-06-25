@@ -1,6 +1,6 @@
 package com.plotmap.backend.model.enum
 
 enum class ProjectType {
-    USER_CREATED,
+    MANUAL,
     AI_GENERATED
 }

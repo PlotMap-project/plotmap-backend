@@ -1,6 +1,6 @@
 package com.plotmap.backend.model.entity
 
-import com.plotmap.backend.model.enum.ProjectType
+import com.plotmap.backend.model.enum.ConnectionType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -13,24 +13,31 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-@Table(name = "projects")
-class Project(
+@Table(name = "event_edges")
+class EventEdge(
     @Id
     val id: UUID = UUID.randomUUID(),
 
-    @Column(nullable = false)
-    val title: String,
+    @Column(name = "id_project", nullable = false)
+    val idProject: UUID,
+
+    @Column(name = "source_event_id", nullable = false)
+    val sourceEventId: UUID,
+
+    @Column(name = "target_event_id", nullable = false)
+    val targetEventId: UUID,
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
-    val type: ProjectType = ProjectType.MANUAL,
+    var type: ConnectionType = ConnectionType.CAUSAL,
 
-    val description: String = "",
+    @Column(nullable = false, columnDefinition = "TEXT")
+    var description: String = "",
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now()
 )

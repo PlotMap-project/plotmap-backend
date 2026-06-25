@@ -15,7 +15,6 @@ data class ProjectDetailResponse(
     val title: String,
     val type: String,
     val description: String,
-    val sourceText: String?,
     val events: List<GeneratedEventDto>,
     val connections: List<GeneratedConnectionDto>,
     val createdAt: Instant

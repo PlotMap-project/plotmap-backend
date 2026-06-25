@@ -97,6 +97,7 @@ class YandexGptClient(
               "level": 0,
               "orderInLevel": 0,
               "color": "#FAFAD2",
+              "sourceContext": "string",
               "characterIds": ["char_1"],
               "storyArcIds": ["arc_1"]
             }
@@ -105,8 +106,8 @@ class YandexGptClient(
             {
               "sourceEventId": "event_1",
               "targetEventId": "event_2",
-              "type": "CAUSAL|TEMPORAL|PARALLEL|CONTRADICTION",
-              "strength": 5
+              "type": "CAUSAL|TEMPORAL|PARALLEL",
+              "description": "string"
             }
           ],
           "characters": [
@@ -127,7 +128,7 @@ class YandexGptClient(
 
         Обязательные правила:
         - suggestedSystemRole строго одно из: INCITING_INCIDENT, RISING_ACTION, CLIMAX, FALLING_ACTION, RESOLUTION, PLOT_TWIST, REGULAR
-        - type строго одно из: CAUSAL, TEMPORAL, PARALLEL, CONTRADICTION
+        - type строго одно из: CAUSAL, TEMPORAL, PARALLEL
         - impactLevel — целое число от 1 до 10, показатель влияния события на сюжет
         - level — целое число, временной слой события (0 — самые ранние, чем больше — тем позже)
         - события, происходящие параллельно или независимо друг от друга, должны иметь одинаковый level
@@ -135,8 +136,9 @@ class YandexGptClient(
         - в каждом level orderInLevel начинается с 0 и идёт без пропусков: 0, 1, 2, ...
         - color — выбери СТРОГО из набора: #FAFAD2, #FFEFD5, #FFE4B5, #FFDAB9, #EEE8AA
         - если не уверен в цвете — используй #FAFAD2
-        - цвет может отражать сюжетную арку или роль события
-        - strength — целое число от 1 до 10, показатель степени данной связи между событиями
+        - color может отражать сюжетную арку или роль события
+        - sourceContext — кратко опиши, из какого фрагмента текста или сцены извлечено событие
+        - description у edges — краткое текстовое описание связи между событиями; если пояснение не нужно, верни пустую строку
         - id событий: event_1, event_2, event_3, ...
         - id персонажей: char_1, char_2, ...
         - id арок: arc_1, arc_2, ...
@@ -156,6 +158,6 @@ class YandexGptClient(
         - не добавляй никакие другие поля вне указанной схемы
 
         Верни только JSON по этой схеме.
-    """.trimIndent()
+        """.trimIndent()
     }
 }
