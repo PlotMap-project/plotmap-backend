@@ -12,4 +12,6 @@ interface EventToTagRepository : JpaRepository<EventToTag, EventToTagId> {
     fun findAllByIdProject(idProject: UUID): List<EventToTag>
 
     fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
+
+    fun deleteByIdProjectAndIdEventAndIdTag(idProject: UUID, idEvent: UUID, idTag: UUID)
 }

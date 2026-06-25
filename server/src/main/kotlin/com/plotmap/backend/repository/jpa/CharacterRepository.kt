@@ -8,5 +8,7 @@ interface CharacterRepository : JpaRepository<Character, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<Character>
 
+    fun findByIdAndProjectId(id: UUID, projectId: UUID): Character?
+
     fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }

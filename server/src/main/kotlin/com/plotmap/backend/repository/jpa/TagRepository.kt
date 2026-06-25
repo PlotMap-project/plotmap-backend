@@ -8,5 +8,7 @@ interface TagRepository : JpaRepository<Tag, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<Tag>
 
+    fun findByIdAndProjectId(id: UUID, projectId: UUID): Tag?
+
     fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }

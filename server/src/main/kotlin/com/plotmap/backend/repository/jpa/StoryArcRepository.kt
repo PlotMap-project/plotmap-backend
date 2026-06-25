@@ -8,5 +8,7 @@ interface StoryArcRepository : JpaRepository<StoryArc, UUID> {
 
     fun findAllByProjectId(projectId: UUID): List<StoryArc>
 
+    fun findByIdAndProjectId(id: UUID, projectId: UUID): StoryArc?
+
     fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
 }
