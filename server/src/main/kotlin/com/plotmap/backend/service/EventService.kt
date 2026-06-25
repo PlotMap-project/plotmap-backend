@@ -118,6 +118,8 @@ class EventService(
 
             request.userNotes?.let { event.userNotes = it.trim() }
             request.color?.let { event.color = normalizeColor(it) }
+            request.customPositionX?.let { event.customPositionX = it }
+            request.customPositionY?.let { event.customPositionY = it }
 
             event.updatedAt = Instant.now()
             val saved = eventRepository.save(event)
@@ -235,8 +237,6 @@ class EventService(
                     request.status != null ||
                     request.level != null ||
                     request.orderInLevel != null ||
-                    request.customPositionX != null ||
-                    request.customPositionY != null ||
                     request.characterIds != null ||
                     request.storyArcIds != null ||
                     request.tagIds != null
@@ -244,7 +244,7 @@ class EventService(
         if (hasForbiddenChanges) {
             throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Only color and userNotes can be updated for AI-generated events"
+                "Only color, userNotes and position can be updated for AI-generated events"
             )
         }
     }

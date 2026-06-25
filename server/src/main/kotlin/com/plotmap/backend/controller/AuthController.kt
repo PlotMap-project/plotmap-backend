@@ -34,4 +34,10 @@ class AuthController(
     fun loginWithName(@RequestBody request: LoginRequestWithName): AuthResponse {
         return authService.loginWithName(request)
     }
+
+    // POST /api/v1/auth/login
+    @PostMapping("/login")
+    fun login(@RequestBody request: LoginRequestWithEmail): AuthResponse {
+        return authService.loginWithEmail(request)
+    }
 }

@@ -133,4 +133,52 @@ class AuthControllerTest {
             .andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.error").value("INVALID_CREDENTIALS"))
     }
+
+    @Test
+    fun `POST login should return 200 on success`() {
+        val response = AuthResponse(
+            userId = "test-id",
+            email = "test@example.com",
+            name = "TestUser",
+            token = "fake-token"
+        )
+
+        whenever(authService.loginWithEmail(any())).thenReturn(response)
+
+        mockMvc.perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        LoginRequestWithEmail(
+                            email = "test@example.com",
+                            password = "password123"
+                        )
+                    )
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.token").value("fake-token"))
+    }
+
+    @Test
+    fun `POST login should return 401 on wrong credentials`() {
+        whenever(authService.loginWithEmail(any()))
+            .thenThrow(InvalidCredentialsException("Invalid email or password"))
+
+        mockMvc.perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        LoginRequestWithEmail(
+                            email = "wrong@example.com",
+                            password = "wrong"
+                        )
+                    )
+                )
+        )
+            .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.error").value("INVALID_CREDENTIALS"))
+    }
 }
