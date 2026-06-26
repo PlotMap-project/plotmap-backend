@@ -1,15 +1,37 @@
 package com.plotmap.backend.model.entity
 
+import com.plotmap.backend.model.enum.ProjectType
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Id
+import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.util.UUID
 
-data class Project(
+@Entity
+@Table(name = "projects")
+class Project(
+    @Id
     val id: UUID = UUID.randomUUID(),
-    val ownerId: UUID,
-    val title: String,
-    val type: String,
-    val description: String = "",
-    val sourceText: String? = null,
+
+    @Column(nullable = false)
+    var title: String,
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false)
+    val type: ProjectType = ProjectType.MANUAL,
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    var description: String = "",
+
+    @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
-    val updatedAt: Instant = Instant.now()
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now()
 )

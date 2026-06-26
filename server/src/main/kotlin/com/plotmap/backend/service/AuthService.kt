@@ -4,11 +4,11 @@ import com.plotmap.backend.dto.request.LoginRequestWithEmail
 import com.plotmap.backend.dto.request.LoginRequestWithName
 import com.plotmap.backend.dto.request.RegisterRequest
 import com.plotmap.backend.dto.response.AuthResponse
-import com.plotmap.backend.entity.User
+import com.plotmap.backend.model.entity.User
 import com.plotmap.backend.exception.EmailAlreadyExistsException
 import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.exception.NameAlreadyExistsException
-import com.plotmap.backend.repository.UserRepository
+import com.plotmap.backend.repository.jpa.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 

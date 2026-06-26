@@ -1,0 +1,68 @@
+package com.plotmap.backend.controller
+
+import com.plotmap.backend.dto.request.CreateStoryArcRequest
+import com.plotmap.backend.dto.request.UpdateStoryArcRequest
+import com.plotmap.backend.dto.response.StoryArcDto
+import com.plotmap.backend.exception.InvalidCredentialsException
+import com.plotmap.backend.service.StoryArcService
+import jakarta.servlet.http.HttpServletRequest
+import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
+
+@RestController
+@RequestMapping("/api/v1/projects/{projectId}/story-arcs")
+class StoryArcController(
+    private val storyArcService: StoryArcService
+) {
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createStoryArc(
+        request: HttpServletRequest,
+        @PathVariable projectId: String,
+        @RequestBody body: CreateStoryArcRequest
+    ): StoryArcDto {
+        val userId = getUserIdFromRequest(request)
+        return storyArcService.createStoryArc(userId, UUID.fromString(projectId), body)
+    }
+
+    @PatchMapping("/{arcId}")
+    fun updateStoryArc(
+        request: HttpServletRequest,
+        @PathVariable projectId: String,
+        @PathVariable arcId: String,
+        @RequestBody body: UpdateStoryArcRequest
+    ): StoryArcDto {
+        val userId = getUserIdFromRequest(request)
+        return storyArcService.updateStoryArc(
+            userId, UUID.fromString(projectId), UUID.fromString(arcId), body
+        )
+    }
+
+    @DeleteMapping("/{arcId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteStoryArc(
+        request: HttpServletRequest,
+        @PathVariable projectId: String,
+        @PathVariable arcId: String
+    ) {
+        val userId = getUserIdFromRequest(request)
+        storyArcService.deleteStoryArc(
+            userId, UUID.fromString(projectId), UUID.fromString(arcId)
+        )
+    }
+
+    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
+        val userId = request.getAttribute("userId") as? String
+            ?: throw InvalidCredentialsException("Missing or invalid token")
+        return UUID.fromString(userId)
+    }
+}

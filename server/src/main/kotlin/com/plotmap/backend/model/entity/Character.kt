@@ -1,14 +1,43 @@
 package com.plotmap.backend.model.entity
 
+import com.plotmap.backend.model.enum.CharacterRole
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Id
+import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.util.UUID
 
-
-data class Character(
+@Entity
+@Table(name = "characters")
+class Character(
+    @Id
     val id: UUID = UUID.randomUUID(),
+
+    @Column(name = "project_id", nullable = false)
     val projectId: UUID,
-    val name: String,
-    val description: String = "",
+
+    @Column(nullable = false, length = 255)
+    var name: String,
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    var description: String = "",
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false)
+    var role: CharacterRole = CharacterRole.SUPPORTING,
+
+    @Column(length = 7)
+    var color: String? = null,
+
+    @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
-    val updatedAt: Instant = Instant.now()
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now()
 )

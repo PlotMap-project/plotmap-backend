@@ -1,10 +1,11 @@
 package com.plotmap.backend.exception
 
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
-
+import org.springframework.web.server.ResponseStatusException
 
 data class ErrorResponse(
     val error: String,
@@ -13,6 +14,8 @@ data class ErrorResponse(
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @ExceptionHandler(EmailAlreadyExistsException::class)
     fun handleEmailExists(e: EmailAlreadyExistsException): ResponseEntity<ErrorResponse> {
@@ -32,7 +35,7 @@ class GlobalExceptionHandler {
     fun handleInvalidCredentials(e: InvalidCredentialsException): ResponseEntity<ErrorResponse> {
         return ResponseEntity
             .status(HttpStatus.UNAUTHORIZED)
-            .body(ErrorResponse("INVALID_CREDENTIALS", e.message ?: "Invalid password or login"))
+            .body(ErrorResponse("INVALID_CREDENTIALS", e.message ?: "Invalid credentials"))
     }
 
     @ExceptionHandler(ProjectNotFoundException::class)
@@ -51,8 +54,27 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception::class)
     fun handleGeneric(e: Exception): ResponseEntity<ErrorResponse> {
+        log.error("Unhandled exception happened", e)
+
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(ErrorResponse("INTERNAL_ERROR", "Internal error, god left us"))
+            .body(
+                ErrorResponse(
+                    "INTERNAL_ERROR",
+                    e.message ?: "Internal error, god left us"
+                )
+            )
+    }
+
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatusException(e: ResponseStatusException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(e.statusCode)
+            .body(
+                ErrorResponse(
+                    e.statusCode.toString(),
+                    e.reason ?: "Request failed"
+                )
+            )
     }
 }

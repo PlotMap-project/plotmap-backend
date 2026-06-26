@@ -3,39 +3,74 @@ package com.plotmap.backend.model.entity
 import com.plotmap.backend.model.enum.EventSource
 import com.plotmap.backend.model.enum.EventStatus
 import com.plotmap.backend.model.enum.SystemEventRole
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Id
+import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.util.UUID
 
+@Entity
+@Table(name = "events")
+class Event(
+    @Id
+    var id: UUID = UUID.randomUUID(),
 
-data class Event(
-    val id: UUID = UUID.randomUUID(),
-    val projectId: UUID,
+    @Column(name = "project_id", nullable = false)
+    var projectId: UUID,
 
-    // AI CAN CHANGE
-    val title: String,
-    val description: String = "",
-    val suggestedSystemRole: SystemEventRole? = null,
-    val impactLevel: Int = 5,
+    @Column(nullable = false)
+    var title: String,
 
-    // AI WON`T CHANGE
-    val status: EventStatus = EventStatus.PLANNED,
-    val justification: String = "",
-    val userNotes: String = "",
-    val userTagIds: List<UUID> = emptyList(),
-    val characterIds: List<UUID> = emptyList(),
-    val storyArcIds: List<UUID> = emptyList(),
+    @Column(columnDefinition = "text")
+    var description: String = "",
 
-    // Other
-    val level: Int = 0,
-    val orderInLevel: Int = 0,
-    val customPositionX: Double? = null,
-    val customPositionY: Double? = null,
-    val isManuallyPositioned: Boolean = false,
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "suggested_system_role")
+    var suggestedSystemRole: SystemEventRole? = null,
 
-    // For AI matching
-    val source: EventSource = EventSource.AI_GENERATED,
-    val textHash: String? = null,
+    @Column(name = "impact_level", nullable = false)
+    var impactLevel: Int = 5,
 
-    val createdAt: Instant = Instant.now(),
-    val updatedAt: Instant = Instant.now()
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false)
+    var status: EventStatus = EventStatus.PLANNED,
+
+    @Column(name = "user_notes", columnDefinition = "text")
+    var userNotes: String = "",
+
+    @Column(name = "level")
+    var level: Int = 0,
+
+    @Column(name = "order_in_level")
+    var orderInLevel: Int = 0,
+
+    @Column(name = "custom_position_x")
+    var customPositionX: Double? = null,
+
+    @Column(name = "custom_position_y")
+    var customPositionY: Double? = null,
+
+    @Column(name = "color")
+    var color: String? = null,
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false)
+    var source: EventSource = EventSource.USER_CREATED,
+
+    @Column(name = "source_context", nullable = false, columnDefinition = "TEXT")
+    var sourceContext: String = "",
+
+    @Column(name = "created_at", nullable = false)
+    var createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now()
 )
