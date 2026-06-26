@@ -1,7 +1,9 @@
 package com.plotmap.backend.service
 
 import com.plotmap.backend.dto.request.AddChapterRequest
+import com.plotmap.backend.dto.response.AddChapterResponse
 import com.plotmap.backend.dto.response.ChapterDto
+import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.exception.ProjectNotFoundException
 import com.plotmap.backend.model.entity.GenerationJob
 import com.plotmap.backend.model.entity.ProjectChapter
@@ -36,13 +38,17 @@ class ChapterService(
     }
 
     @Transactional
-    fun addChapter(userId: UUID, projectId: UUID, request: AddChapterRequest): ChapterDto {
+    fun addChapter(userId: UUID, projectId: UUID, request: AddChapterRequest): AddChapterResponse {
         ensureUserHasAccessToProject(userId, projectId)
 
         require(request.text.isNotBlank()) { "Chapter text must not be empty" }
 
         val project = projectRepository.findById(projectId)
             .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
+
+        require(project.type == ProjectType.AI_GENERATED) {
+            "Cannot add chapters to a MANUAL project"
+        }
 
         val nextOrder = projectChapterRepository.countByProjectId(projectId) + 1
 
@@ -55,26 +61,35 @@ class ChapterService(
             )
         )
 
-        if (project.type == ProjectType.AI_GENERATED) {
-            val job = generationJobRepository.save(
-                GenerationJob(
-                    projectId = projectId,
-                    chapterId = chapter.id,
-                    mode = GenerationMode.APPEND_CHAPTER,
-                    status = JobStatus.PENDING
-                )
+        val job = generationJobRepository.save(
+            GenerationJob(
+                projectId = projectId,
+                chapterId = chapter.id,
+                mode = GenerationMode.APPEND_CHAPTER,
+                status = JobStatus.PENDING
             )
+        )
 
-            TransactionSynchronizationManager.registerSynchronization(
-                object : TransactionSynchronization {
-                    override fun afterCommit() {
-                        generationJobProcessor.process(job.id)
-                    }
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() {
+                    generationJobProcessor.process(job.id)
                 }
-            )
-        }
+            }
+        )
 
-        return chapter.toDto()
+        return AddChapterResponse(
+            chapter = chapter.toDto(),
+            job = JobStatusResponse(
+                jobId = job.id.toString(),
+                projectId = job.projectId.toString(),
+                status = job.status.name,
+                errorMessage = job.errorMessage,
+                result = null,
+                createdAt = job.createdAt,
+                updatedAt = job.updatedAt
+            )
+        )
     }
 
     private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {

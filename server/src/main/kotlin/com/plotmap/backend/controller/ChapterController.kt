@@ -1,6 +1,7 @@
 package com.plotmap.backend.controller
 
 import com.plotmap.backend.dto.request.AddChapterRequest
+import com.plotmap.backend.dto.response.AddChapterResponse
 import com.plotmap.backend.dto.response.ChapterDto
 import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.ChapterService
@@ -38,7 +39,7 @@ class ChapterController(
         request: HttpServletRequest,
         @PathVariable projectId: String,
         @RequestBody body: AddChapterRequest
-    ): ChapterDto {
+    ): AddChapterResponse {
         val userId = getUserIdFromRequest(request)
         return chapterService.addChapter(userId, UUID.fromString(projectId), body)
     }
