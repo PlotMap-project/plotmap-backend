@@ -1,7 +1,10 @@
 package com.plotmap.backend.client
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.plotmap.backend.config.YandexGptProperties
+import com.plotmap.backend.exception.ContentFilteredException
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.net.URI
 import java.net.http.HttpClient
@@ -13,38 +16,29 @@ class YandexGptClient(
     private val properties: YandexGptProperties,
     private val objectMapper: ObjectMapper
 ) {
-
+    private val log = LoggerFactory.getLogger(javaClass)
     private val httpClient = HttpClient.newBuilder().build()
 
     fun generateRawGraphJson(text: String): String {
         require(text.isNotBlank()) { "Text must not be empty" }
-        require(properties.apiKey.isNotBlank()) { "Yandex GPT API key is not configured" }
-        require(properties.folderId.isNotBlank()) { "Yandex GPT folder id is not configured" }
-        require(properties.modelUri.isNotBlank()) { "Yandex GPT model uri is not configured" }
+        require(properties.apiKey.isNotBlank()) { "API key is not configured" }
+        require(properties.agentId.isNotBlank()) { "Agent ID is not configured" }
+        require(properties.organization.isNotBlank()) { "Organization is not configured" }
+
+        val cleanedAgentId = properties.agentId.trim().removePrefix("\"").removeSuffix("\"")
+        val cleanedOrganization = properties.organization.trim().removePrefix("\"").removeSuffix("\"")
+
+        log.info("Using agentId='{}', organization='{}'", cleanedAgentId, cleanedOrganization)
 
         val requestBody = mapOf(
-            "modelUri" to properties.modelUri,
-            "completionOptions" to mapOf(
-                "stream" to false,
-                "temperature" to 0.3,
-                "maxTokens" to "4000"
-            ),
-            "messages" to listOf(
-                mapOf(
-                    "role" to "system",
-                    "text" to buildSystemPrompt()
-                ),
-                mapOf(
-                    "role" to "user",
-                    "text" to text
-                )
-            )
+            "prompt" to mapOf("id" to cleanedAgentId),
+            "input" to text
         )
 
         val httpRequest = HttpRequest.newBuilder()
-            .uri(URI.create("https://llm.api.cloud.yandex.net/foundationModels/v1/completion"))
-            .header("Authorization", "Api-Key ${properties.apiKey}")
-            .header("x-folder-id", properties.folderId)
+            .uri(URI.create("https://ai.api.cloud.yandex.net/v1/responses"))
+            .header("Authorization", "Bearer ${properties.apiKey}")
+            .header("OpenAI-Organization", cleanedOrganization)
             .header("Content-Type", "application/json")
             .POST(
                 HttpRequest.BodyPublishers.ofString(
@@ -59,107 +53,73 @@ class YandexGptClient(
         )
 
         if (response.statusCode() < 200 || response.statusCode() > 299) {
+            log.error("Yandex Agent request failed: {} {}", response.statusCode(), response.body())
             throw IllegalStateException(
-                "Yandex GPT request failed: ${response.statusCode()} ${response.body()}"
+                "Yandex Agent request failed: ${response.statusCode()} ${response.body()}"
             )
         }
 
-        val root = objectMapper.readTree(response.body())
+        log.info("Full agent response body: {}", response.body())
 
-        return root.path("result")
-            .path("alternatives")
-            .path(0)
-            .path("message")
-            .path("text")
-            .asText()
-            .trim()
+        val root = objectMapper.readTree(response.body())
+        val status = root.path("status").asText()
+        val incompleteReason = root.path("incomplete_details").path("reason").asText()
+
+        if (status == "incomplete" && incompleteReason == "content_filter") {
+            val refusalText = root.path("output")
+                .takeIf { it.isArray && it.size() > 0 }
+                ?.get(0)
+                ?.path("content")
+                ?.takeIf { it.isArray && it.size() > 0 }
+                ?.get(0)
+                ?.path("text")
+                ?.asText()
+                ?.trim()
+                ?: "Content filtered by model"
+
+            throw ContentFilteredException("Chunk was filtered by model: $refusalText")
+        }
+        val outputText = extractOutputText(root)
+        log.info("Extracted output text length={}", outputText.length)
+        log.debug("Extracted output text: {}", outputText)
+        return outputText
     }
 
-    private fun buildSystemPrompt(): String {
-        return """
-        Ты — литературный аналитик. Проанализируй художественный текст и извлеки из него сюжетный граф.
-
-        Верни ТОЛЬКО валидный JSON.
-        Не используй markdown.
-        Не добавляй пояснения.
-        Не добавляй текст до JSON или после JSON.
-        Не добавляй никакие поля, которых нет в схеме ниже.
-
-        Схема ответа:
-        {
-          "events": [
-            {
-              "id": "event_1",
-              "title": "string",
-              "description": "string",
-              "suggestedSystemRole": "INCITING_INCIDENT|RISING_ACTION|CLIMAX|FALLING_ACTION|RESOLUTION|PLOT_TWIST|REGULAR",
-              "impactLevel": 1,
-              "level": 0,
-              "orderInLevel": 0,
-              "color": "#FAFAD2",
-              "sourceContext": "string",
-              "characterIds": ["char_1"],
-              "storyArcIds": ["arc_1"]
-            }
-          ],
-          "edges": [
-            {
-              "sourceEventId": "event_1",
-              "targetEventId": "event_2",
-              "type": "CAUSAL|TEMPORAL|PARALLEL",
-              "description": "string"
-            }
-          ],
-          "characters": [
-            {
-              "id": "char_1",
-              "name": "string",
-              "description": "string",
-              "role": "PROTAGONIST|ANTAGONIST|MAJOR|SUPPORTING|EPISODIC"
-            }
-          ],
-          "storyArcs": [
-            {
-              "id": "arc_1",
-              "name": "string",
-              "description": "string"
-            }
-          ]
+    private fun extractOutputText(root: JsonNode): String {
+        val directOutputText = root.path("output_text").asText().trim()
+        if (directOutputText.isNotBlank()) {
+            return directOutputText
         }
 
-        Обязательные правила:
-        - suggestedSystemRole строго одно из: INCITING_INCIDENT, RISING_ACTION, CLIMAX, FALLING_ACTION, RESOLUTION, PLOT_TWIST, REGULAR
-        - type строго одно из: CAUSAL, TEMPORAL, PARALLEL
-        - impactLevel — целое число от 1 до 10, показатель влияния события на сюжет
-        - level — целое число, временной слой события (0 — самые ранние, чем больше — тем позже)
-        - события, происходящие параллельно или независимо друг от друга, должны иметь одинаковый level
-        - orderInLevel — порядок события внутри своего level, начинается с 0
-        - в каждом level orderInLevel начинается с 0 и идёт без пропусков: 0, 1, 2, ...
-        - color — выбери СТРОГО из набора: #FAFAD2, #FFEFD5, #FFE4B5, #FFDAB9, #EEE8AA
-        - если не уверен в цвете — используй #FAFAD2
-        - color может отражать сюжетную арку или роль события
-        - sourceContext — кратко опиши, из какого фрагмента текста или сцены извлечено событие
-        - description у edges — краткое текстовое описание связи между событиями; если пояснение не нужно, верни пустую строку
-        - id событий: event_1, event_2, event_3, ...
-        - id персонажей: char_1, char_2, ...
-        - id арок: arc_1, arc_2, ...
-        - sourceEventId и targetEventId должны ссылаться только на существующие events.id
-        - не создавай self-loop: sourceEventId не должен совпадать с targetEventId
-        - в characterIds каждого event указывай ТОЛЬКО id из массива characters
-        - в storyArcIds каждого event указывай ТОЛЬКО id из массива storyArcs
-        - если в событии нет персонажей, characterIds должен быть пустым массивом []
-        - если событие не относится ни к одной арке, storyArcIds должен быть пустым массивом []
-        - выделяй только значимые события сюжета
-        - создай от 5 до 12 событий, если текст достаточно содержательный
-        - каждое событие желательно связать хотя бы одним ребром
-        - выдели всех значимых персонажей и помести их в characters
-        - role персонажа строго одно из: PROTAGONIST, ANTAGONIST, MAJOR, SUPPORTING, EPISODIC
-        - выдели сюжетные арки (основные сюжетные линии) и помести их в storyArcs
+        val directCamelOutputText = root.path("outputText").asText().trim()
+        if (directCamelOutputText.isNotBlank()) {
+            return directCamelOutputText
+        }
 
-        Запрещено:
-        - не добавляй никакие другие поля вне указанной схемы
+        val outputArray = root.path("output")
+        if (outputArray.isArray) {
+            val parts = mutableListOf<String>()
 
-        Верни только JSON по этой схеме.
-        """.trimIndent()
+            outputArray.forEach { outputItem ->
+                val contentArray = outputItem.path("content")
+                if (contentArray.isArray) {
+                    contentArray.forEach { contentItem ->
+                        val type = contentItem.path("type").asText()
+                        val text = contentItem.path("text").asText()
+
+                        if (type == "output_text" && text.isNotBlank()) {
+                            parts.add(text)
+                        }
+                    }
+                }
+            }
+
+            val joined = parts.joinToString("\n").trim()
+            if (joined.isNotBlank()) {
+                return joined
+            }
+        }
+
+        throw IllegalStateException("Agent response does not contain output text in expected format")
     }
 }

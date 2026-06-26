@@ -18,6 +18,7 @@ import com.plotmap.backend.repository.jpa.EventRepository
 import com.plotmap.backend.repository.jpa.EventToCharacterRepository
 import com.plotmap.backend.repository.jpa.StoryArcRepository
 import com.plotmap.backend.repository.jpa.StoryArcToEventRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -31,6 +32,8 @@ class AiProcessingService(
     private val storyArcRepository: StoryArcRepository,
     private val storyArcToEventRepository: StoryArcToEventRepository
 ) {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     fun saveInitialGeneration(projectId: UUID, graph: AiGraphResponse) {
@@ -46,30 +49,49 @@ class AiProcessingService(
         val characterIdMap = mutableMapOf<String, UUID>()
         val storyArcIdMap = mutableMapOf<String, UUID>()
         val eventIdMap = mutableMapOf<String, UUID>()
+        val existingCharacters = characterRepository.findAllByProjectId(projectId)
+        val existingCharactersByName = existingCharacters.associateBy { it.name.normalize() }
 
         graph.characters.forEach { aiCharacter ->
-            val saved = characterRepository.save(
-                Character(
-                    projectId = projectId,
-                    name = aiCharacter.name.trim(),
-                    description = aiCharacter.description.trim(),
-                    role = parseCharacterRole(aiCharacter.role)
+            val normalizedName = aiCharacter.name.trim().normalize()
+            val existing = existingCharactersByName[normalizedName]
+
+            if (existing != null) {
+                log.info("Character '{}' already exists, reusing id {}", aiCharacter.name, existing.id)
+                characterIdMap[aiCharacter.id] = existing.id
+            } else {
+                val saved = characterRepository.save(
+                    Character(
+                        projectId = projectId,
+                        name = aiCharacter.name.trim(),
+                        description = aiCharacter.description.trim(),
+                        role = parseCharacterRole(aiCharacter.role)
+                    )
                 )
-            )
-            characterIdMap[aiCharacter.id] = saved.id
+                characterIdMap[aiCharacter.id] = saved.id
+            }
         }
+        val existingArcs = storyArcRepository.findAllByProjectId(projectId)
+        val existingArcsByTitle = existingArcs.associateBy { it.title.normalize() }
 
         graph.storyArcs.forEach { aiArc ->
-            val saved = storyArcRepository.save(
-                StoryArc(
-                    projectId = projectId,
-                    title = aiArc.name.trim(),
-                    description = aiArc.description.trim()
-                )
-            )
-            storyArcIdMap[aiArc.id] = saved.id
-        }
+            val normalizedTitle = aiArc.name.trim().normalize()
+            val existing = existingArcsByTitle[normalizedTitle]
 
+            if (existing != null) {
+                log.info("Story arc '{}' already exists, reusing id {}", aiArc.name, existing.id)
+                storyArcIdMap[aiArc.id] = existing.id
+            } else {
+                val saved = storyArcRepository.save(
+                    StoryArc(
+                        projectId = projectId,
+                        title = aiArc.name.trim(),
+                        description = aiArc.description.trim()
+                    )
+                )
+                storyArcIdMap[aiArc.id] = saved.id
+            }
+        }
         graph.events.forEach { aiEvent ->
             val saved = eventRepository.save(
                 Event(
@@ -77,8 +99,8 @@ class AiProcessingService(
                     title = aiEvent.title.trim(),
                     description = aiEvent.description.trim(),
                     suggestedSystemRole = parseSystemRole(aiEvent.suggestedSystemRole),
-                    status = EventStatus.IMPLEMENTED,
                     impactLevel = aiEvent.impactLevel.coerceIn(1, 10),
+                    status = EventStatus.IMPLEMENTED,
                     level = aiEvent.level.coerceAtLeast(0),
                     orderInLevel = aiEvent.orderInLevel.coerceAtLeast(0),
                     color = normalizeColor(aiEvent.color),
@@ -88,10 +110,8 @@ class AiProcessingService(
             )
             eventIdMap[aiEvent.id] = saved.id
         }
-
         val eventToCharacters = graph.events.flatMap { aiEvent ->
             val savedEventId = eventIdMap[aiEvent.id] ?: return@flatMap emptyList()
-
             aiEvent.characterIds.mapNotNull { characterId ->
                 val savedCharacterId = characterIdMap[characterId] ?: return@mapNotNull null
                 EventToCharacter(
@@ -105,7 +125,6 @@ class AiProcessingService(
 
         val storyArcToEvents = graph.events.flatMap { aiEvent ->
             val savedEventId = eventIdMap[aiEvent.id] ?: return@flatMap emptyList()
-
             aiEvent.storyArcIds.mapNotNull { arcId ->
                 val savedArcId = storyArcIdMap[arcId] ?: return@mapNotNull null
                 StoryArcToEvent(
@@ -120,7 +139,6 @@ class AiProcessingService(
         val savedEdges = graph.edges.mapNotNull { aiEdge ->
             val savedSourceId = eventIdMap[aiEdge.sourceEventId] ?: return@mapNotNull null
             val savedTargetId = eventIdMap[aiEdge.targetEventId] ?: return@mapNotNull null
-
             EventEdge(
                 idProject = projectId,
                 sourceEventId = savedSourceId,
@@ -130,6 +148,15 @@ class AiProcessingService(
             )
         }
         eventEdgeRepository.saveAll(savedEdges)
+
+        log.info(
+            "Saved graph delta: {} events, {} edges, {} characters (deduped), {} arcs (deduped)",
+            eventIdMap.size, savedEdges.size, characterIdMap.size, storyArcIdMap.size
+        )
+    }
+
+    private fun String.normalize(): String {
+        return this.trim().lowercase().replace(Regex("\\s+"), " ")
     }
 
     private fun parseSystemRole(value: String?): SystemEventRole? {
@@ -138,6 +165,15 @@ class AiProcessingService(
             SystemEventRole.valueOf(value.trim())
         } catch (_: IllegalArgumentException) {
             SystemEventRole.REGULAR
+        }
+    }
+
+    private fun parseCharacterRole(value: String?): CharacterRole {
+        if (value.isNullOrBlank()) return CharacterRole.SUPPORTING
+        return try {
+            CharacterRole.valueOf(value.trim())
+        } catch (_: IllegalArgumentException) {
+            CharacterRole.SUPPORTING
         }
     }
 
@@ -154,14 +190,5 @@ class AiProcessingService(
         if (value.isNullOrBlank()) return null
         val trimmed = value.trim()
         return if (Regex("^#[0-9A-Fa-f]{6}$").matches(trimmed)) trimmed else null
-    }
-
-    private fun parseCharacterRole(value: String?): CharacterRole {
-        if (value.isNullOrBlank()) return CharacterRole.SUPPORTING
-        return try {
-            CharacterRole.valueOf(value.trim())
-        } catch (_: IllegalArgumentException) {
-            CharacterRole.SUPPORTING
-        }
     }
 }

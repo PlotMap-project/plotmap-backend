@@ -193,13 +193,6 @@ class ProjectService(
         require(request.name.isNotBlank()) { "Project name must not be blank" }
         require(request.text.isNotBlank()) { "Text must not be empty" }
 
-        if (request.text.length > yandexGptProperties.maxTextLength) {
-            throw IllegalArgumentException(
-                "Text is too long: ${request.text.length} characters. " +
-                        "Maximum allowed: ${yandexGptProperties.maxTextLength}"
-            )
-        }
-
         val project = Project(
             title = request.name.trim(),
             type = ProjectType.AI_GENERATED,
