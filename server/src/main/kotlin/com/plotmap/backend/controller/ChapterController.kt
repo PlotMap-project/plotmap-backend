@@ -2,6 +2,7 @@ package com.plotmap.backend.controller
 
 import com.plotmap.backend.dto.request.AddChapterRequest
 import com.plotmap.backend.dto.response.AddChapterResponse
+import com.plotmap.backend.dto.response.ChapterDetailDto
 import com.plotmap.backend.dto.response.ChapterDto
 import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.ChapterService
@@ -30,6 +31,21 @@ class ChapterController(
     ): List<ChapterDto> {
         val userId = getUserIdFromRequest(request)
         return chapterService.getChapters(userId, UUID.fromString(projectId))
+    }
+
+    // GET /api/v1/projects/{projectId}/chapters/{chapterId}
+    @GetMapping("/{chapterId}")
+    fun getChapterById(
+        request: HttpServletRequest,
+        @PathVariable projectId: String,
+        @PathVariable chapterId: String
+    ): ChapterDetailDto {
+        val userId = getUserIdFromRequest(request)
+        return chapterService.getChapterById(
+            userId,
+            UUID.fromString(projectId),
+            UUID.fromString(chapterId)
+        )
     }
 
     // POST /api/v1/projects/{projectId}/chapters

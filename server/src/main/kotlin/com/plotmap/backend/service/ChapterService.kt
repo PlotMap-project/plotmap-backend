@@ -2,6 +2,7 @@ package com.plotmap.backend.service
 
 import com.plotmap.backend.dto.request.AddChapterRequest
 import com.plotmap.backend.dto.response.AddChapterResponse
+import com.plotmap.backend.dto.response.ChapterDetailDto
 import com.plotmap.backend.dto.response.ChapterDto
 import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.exception.ProjectNotFoundException
@@ -35,6 +36,19 @@ class ChapterService(
         return projectChapterRepository
             .findAllByProjectIdOrderByChapterOrderAsc(projectId)
             .map { it.toDto() }
+    }
+
+    fun getChapterById(userId: UUID, projectId: UUID, chapterId: UUID): ChapterDetailDto {
+        ensureUserHasAccessToProject(userId, projectId)
+
+        val chapter = projectChapterRepository.findById(chapterId)
+            .orElseThrow { ProjectNotFoundException("Chapter $chapterId not found") }
+
+        if (chapter.projectId != projectId) {
+            throw ProjectNotFoundException("Chapter $chapterId not found in project $projectId")
+        }
+
+        return chapter.toDetailDto()
     }
 
     @Transactional
@@ -104,6 +118,16 @@ class ChapterService(
             id = this.id.toString(),
             chapterOrder = this.chapterOrder,
             title = this.title,
+            createdAt = this.createdAt
+        )
+    }
+
+    private fun ProjectChapter.toDetailDto(): ChapterDetailDto {
+        return ChapterDetailDto(
+            id = this.id.toString(),
+            chapterOrder = this.chapterOrder,
+            title = this.title,
+            text = this.text,
             createdAt = this.createdAt
         )
     }
