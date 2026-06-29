@@ -2,10 +2,9 @@ package com.plotmap.backend.dto.response
 
 import java.time.Instant
 
-data class ProjectResponse(
+data class ChapterDto(
     val id: String,
-    val title: String,
-    val type: String,
-    val description: String,
+    val chapterOrder: Int,
+    val title: String?,
     val createdAt: Instant
 )

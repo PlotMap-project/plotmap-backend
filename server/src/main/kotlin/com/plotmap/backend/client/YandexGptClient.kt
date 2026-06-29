@@ -10,6 +10,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 @Component
 class YandexGptClient(
@@ -17,29 +18,25 @@ class YandexGptClient(
     private val objectMapper: ObjectMapper
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val httpClient = HttpClient.newBuilder().build()
+
+    private val httpClient = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(10))
+        .build()
 
     fun generateRawGraphJson(text: String): String {
         require(text.isNotBlank()) { "Text must not be empty" }
-        require(properties.apiKey.isNotBlank()) { "API key is not configured" }
-        require(properties.agentId.isNotBlank()) { "Agent ID is not configured" }
-        require(properties.organization.isNotBlank()) { "Organization is not configured" }
-
-        val cleanedAgentId = properties.agentId.trim().removePrefix("\"").removeSuffix("\"")
-        val cleanedOrganization = properties.organization.trim().removePrefix("\"").removeSuffix("\"")
-
-        log.info("Using agentId='{}', organization='{}'", cleanedAgentId, cleanedOrganization)
 
         val requestBody = mapOf(
-            "prompt" to mapOf("id" to cleanedAgentId),
+            "prompt" to mapOf("id" to properties.agentId.trim()),
             "input" to text
         )
 
         val httpRequest = HttpRequest.newBuilder()
             .uri(URI.create("https://ai.api.cloud.yandex.net/v1/responses"))
             .header("Authorization", "Bearer ${properties.apiKey}")
-            .header("OpenAI-Organization", cleanedOrganization)
+            .header("OpenAI-Organization", properties.organization.trim())
             .header("Content-Type", "application/json")
+            .timeout(Duration.ofSeconds(120))
             .POST(
                 HttpRequest.BodyPublishers.ofString(
                     objectMapper.writeValueAsString(requestBody)
@@ -47,19 +44,22 @@ class YandexGptClient(
             )
             .build()
 
+        log.info("Sending request to Yandex GPT, text length={}", text.length)
         val response = httpClient.send(
             httpRequest,
             HttpResponse.BodyHandlers.ofString()
         )
 
         if (response.statusCode() < 200 || response.statusCode() > 299) {
-            log.error("Yandex Agent request failed: {} {}", response.statusCode(), response.body())
+            log.error("Yandex GPT request failed: status={}", response.statusCode())
+            log.debug("Yandex GPT error body: {}", response.body().take(1000))
             throw IllegalStateException(
-                "Yandex Agent request failed: ${response.statusCode()} ${response.body()}"
+                "Yandex GPT request failed with status ${response.statusCode()}"
             )
         }
 
-        log.info("Full agent response body: {}", response.body())
+        log.info("Yandex GPT responded: status={}, bodyLength={}", response.statusCode(), response.body().length)
+        log.debug("Yandex GPT response body (first 500 chars): {}", response.body().take(500))
 
         val root = objectMapper.readTree(response.body())
         val status = root.path("status").asText()
@@ -81,21 +81,11 @@ class YandexGptClient(
         }
         val outputText = extractOutputText(root)
         log.info("Extracted output text length={}", outputText.length)
-        log.debug("Extracted output text: {}", outputText)
+        log.debug("Extracted output text (first 500 chars): {}", outputText.take(500))
         return outputText
     }
 
     private fun extractOutputText(root: JsonNode): String {
-        val directOutputText = root.path("output_text").asText().trim()
-        if (directOutputText.isNotBlank()) {
-            return directOutputText
-        }
-
-        val directCamelOutputText = root.path("outputText").asText().trim()
-        if (directCamelOutputText.isNotBlank()) {
-            return directCamelOutputText
-        }
-
         val outputArray = root.path("output")
         if (outputArray.isArray) {
             val parts = mutableListOf<String>()
@@ -118,6 +108,11 @@ class YandexGptClient(
             if (joined.isNotBlank()) {
                 return joined
             }
+        }
+
+        val directOutputText = root.path("output_text").asText().trim()
+        if (directOutputText.isNotBlank()) {
+            return directOutputText
         }
 
         throw IllegalStateException("Agent response does not contain output text in expected format")

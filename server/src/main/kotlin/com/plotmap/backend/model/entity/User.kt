@@ -1,5 +1,6 @@
 package com.plotmap.backend.model.entity
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -16,6 +17,7 @@ class User(
     @Column(nullable = false, unique = true)
     val email: String,
 
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     val passwordHash: String,
 
@@ -26,5 +28,5 @@ class User(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now()
 )

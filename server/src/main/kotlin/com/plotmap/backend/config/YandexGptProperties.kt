@@ -7,8 +7,6 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "yandex.gpt")
 class YandexGptProperties {
     lateinit var apiKey: String
-    lateinit var folderId: String
-    lateinit var modelUri: String
     lateinit var agentId: String
     lateinit var organization: String
 }

@@ -4,6 +4,7 @@ import com.plotmap.backend.service.JwtService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
@@ -14,6 +15,8 @@ class JwtAuthFilter(
     private val jwtService: JwtService
 ) : OncePerRequestFilter() {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -23,11 +26,8 @@ class JwtAuthFilter(
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             val token = authHeader.substring(7).trim()
-
-            if (jwtService.isTokenValid(token)) {
+            try {
                 val userId = jwtService.validateTokenAndGetUserId(token)
-
-                request.setAttribute("userId", userId.toString())
 
                 val authentication = UsernamePasswordAuthenticationToken(
                     userId.toString(),
@@ -35,6 +35,8 @@ class JwtAuthFilter(
                     emptyList()
                 )
                 SecurityContextHolder.getContext().authentication = authentication
+            } catch (e: Exception) {
+                log.debug("JWT validation failed: {}", e.message)
             }
         }
 

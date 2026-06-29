@@ -41,13 +41,4 @@ class JwtService(
 
         return UUID.fromString(claims.subject)
     }
-
-    fun isTokenValid(token: String): Boolean {
-        return try {
-            validateTokenAndGetUserId(token)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
 }

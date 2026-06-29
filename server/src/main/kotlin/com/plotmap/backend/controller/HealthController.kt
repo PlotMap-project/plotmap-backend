@@ -11,7 +11,7 @@ class HealthController {
     @GetMapping("/health")
     fun health(): Map<String, String> {
         return mapOf(
-            "status" to "OK, we will win",
+            "status" to "OK",
             "message" to "PlotMap backend is running smoothly"
         )
     }

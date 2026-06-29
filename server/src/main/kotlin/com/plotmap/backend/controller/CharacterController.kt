@@ -3,9 +3,7 @@ package com.plotmap.backend.controller
 import com.plotmap.backend.dto.request.CreateCharacterRequest
 import com.plotmap.backend.dto.request.UpdateCharacterRequest
 import com.plotmap.backend.dto.response.CharacterDto
-import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.CharacterService
-import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -26,22 +24,20 @@ class CharacterController(
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createCharacter(
-        request: HttpServletRequest,
         @PathVariable projectId: String,
         @RequestBody body: CreateCharacterRequest
     ): CharacterDto {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return characterService.createCharacter(userId, UUID.fromString(projectId), body)
     }
 
     @PatchMapping("/{characterId}")
     fun updateCharacter(
-        request: HttpServletRequest,
         @PathVariable projectId: String,
         @PathVariable characterId: String,
         @RequestBody body: UpdateCharacterRequest
     ): CharacterDto {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return characterService.updateCharacter(
             userId, UUID.fromString(projectId), UUID.fromString(characterId), body
         )
@@ -50,19 +46,12 @@ class CharacterController(
     @DeleteMapping("/{characterId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteCharacter(
-        request: HttpServletRequest,
         @PathVariable projectId: String,
         @PathVariable characterId: String
     ) {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         characterService.deleteCharacter(
             userId, UUID.fromString(projectId), UUID.fromString(characterId)
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

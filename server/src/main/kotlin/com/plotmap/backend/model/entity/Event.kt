@@ -18,10 +18,10 @@ import java.util.UUID
 @Table(name = "events")
 class Event(
     @Id
-    var id: UUID = UUID.randomUUID(),
+    val id: UUID = UUID.randomUUID(),
 
     @Column(name = "project_id", nullable = false)
-    var projectId: UUID,
+    val projectId: UUID,
 
     @Column(nullable = false)
     var title: String,
@@ -69,7 +69,7 @@ class Event(
     var sourceContext: String = "",
 
     @Column(name = "created_at", nullable = false)
-    var createdAt: Instant = Instant.now(),
+    val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()

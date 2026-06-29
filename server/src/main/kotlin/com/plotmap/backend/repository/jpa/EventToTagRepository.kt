@@ -7,13 +7,13 @@ import java.util.UUID
 
 interface EventToTagRepository : JpaRepository<EventToTag, EventToTagId> {
 
-    fun findAllByIdEvent(idEvent: UUID): List<EventToTag>
+    fun findAllByEventId(eventId: UUID): List<EventToTag>
 
-    fun findAllByIdProject(idProject: UUID): List<EventToTag>
+    fun findAllByProjectId(projectId: UUID): List<EventToTag>
 
-    fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
+    fun deleteAllByProjectIdAndEventId(projectId: UUID, eventId: UUID)
 
-    fun deleteByIdProjectAndIdEventAndIdTag(idProject: UUID, idEvent: UUID, idTag: UUID)
+    fun deleteByProjectIdAndEventIdAndTagId(projectId: UUID, eventId: UUID, tagId: UUID)
 
-    fun deleteAllByIdProject(idProject: UUID)
+    fun deleteAllByProjectId(projectId: UUID)
 }

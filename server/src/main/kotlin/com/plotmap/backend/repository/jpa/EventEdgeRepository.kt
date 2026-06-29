@@ -6,10 +6,9 @@ import java.util.UUID
 
 interface EventEdgeRepository : JpaRepository<EventEdge, UUID> {
 
-    fun findAllByIdProject(idProject: UUID): List<EventEdge>
+    fun findAllByProjectId(projectId: UUID): List<EventEdge>
 
-    fun findByIdAndIdProject(id: UUID, idProject: UUID): EventEdge?
+    fun findByIdAndProjectId(id: UUID, projectId: UUID): EventEdge?
 
-    fun deleteAllByIdProject(idProject: UUID)
-
+    fun deleteAllByProjectId(projectId: UUID)
 }

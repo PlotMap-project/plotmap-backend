@@ -7,11 +7,11 @@ import java.util.UUID
 
 interface EventToCharacterRepository : JpaRepository<EventToCharacter, EventToCharacterId> {
 
-    fun findAllByIdEvent(idEvent: UUID): List<EventToCharacter>
+    fun findAllByEventId(eventId: UUID): List<EventToCharacter>
 
-    fun findAllByIdProject(idProject: UUID): List<EventToCharacter>
+    fun findAllByProjectId(projectId: UUID): List<EventToCharacter>
 
-    fun deleteAllByIdProject(idProject: UUID)
+    fun deleteAllByProjectId(projectId: UUID)
 
-    fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
+    fun deleteAllByProjectIdAndEventId(projectId: UUID, eventId: UUID)
 }

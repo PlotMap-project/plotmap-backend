@@ -19,7 +19,7 @@ class EventEdge(
     val id: UUID = UUID.randomUUID(),
 
     @Column(name = "id_project", nullable = false)
-    val idProject: UUID,
+    val projectId: UUID,
 
     @Column(name = "source_event_id", nullable = false)
     val sourceEventId: UUID,

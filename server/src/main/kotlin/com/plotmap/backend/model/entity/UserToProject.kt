@@ -9,8 +9,8 @@ import java.io.Serializable
 import java.util.UUID
 
 class UserToProjectId(
-    val idUser: UUID = UUID.randomUUID(),
-    val idProject: UUID = UUID.randomUUID()
+    val idUser: UUID = UUID(0, 0),
+    val idProject: UUID = UUID(0, 0)
 ) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

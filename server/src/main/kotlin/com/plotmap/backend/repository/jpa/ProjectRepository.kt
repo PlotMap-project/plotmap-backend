@@ -8,8 +8,8 @@ import java.util.UUID
 interface ProjectRepository : JpaRepository<Project, UUID> {
     @Query("""
         SELECT p FROM Project p
-        JOIN UserToProject utp ON p.id = utp.idProject
-        WHERE utp.idUser = :userId
+        JOIN UserToProject utp ON p.id = utp.projectId
+        WHERE utp.userId = :userId
         ORDER BY p.createdAt DESC
     """)
     fun findAllByUserId(userId: UUID): List<Project>

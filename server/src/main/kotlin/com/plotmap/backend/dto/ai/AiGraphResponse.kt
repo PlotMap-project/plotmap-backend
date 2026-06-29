@@ -37,6 +37,6 @@ data class AiCharacterDto(
 
 data class AiStoryArcDto(
     val id: String,
-    val name: String,
+    val title: String,
     val description: String = ""
 )

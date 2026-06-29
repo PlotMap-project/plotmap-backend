@@ -2,13 +2,11 @@ package com.plotmap.backend.controller
 
 import com.plotmap.backend.dto.request.CreateProjectRequest
 import com.plotmap.backend.dto.request.GenerateProjectRequest
+import com.plotmap.backend.dto.request.UpdateProjectRequest
 import com.plotmap.backend.dto.response.JobStatusResponse
 import com.plotmap.backend.dto.response.ProjectDetailResponse
 import com.plotmap.backend.dto.response.ProjectResponse
-import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.ProjectService
-import com.plotmap.backend.dto.request.UpdateProjectRequest
-import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -27,63 +25,52 @@ class ProjectController(
     private val projectService: ProjectService
 ) {
     @GetMapping
-    fun getProjects(request: HttpServletRequest): List<ProjectResponse> {
-        val userId = getUserIdFromRequest(request)
+    fun getProjects(): List<ProjectResponse> {
+        val userId = getCurrentUserId()
         return projectService.getProjectsByUserId(userId)
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createProject(
-        request: HttpServletRequest,
         @RequestBody body: CreateProjectRequest
     ): ProjectResponse {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return projectService.createProject(userId, body)
     }
 
     @GetMapping("/{projectId}")
     fun getProject(
-        request: HttpServletRequest,
         @PathVariable projectId: String
     ): ProjectDetailResponse {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return projectService.getProjectById(userId, UUID.fromString(projectId))
     }
 
     @PostMapping("/generate")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun generateProject(
-        request: HttpServletRequest,
         @RequestBody body: GenerateProjectRequest
     ): JobStatusResponse {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return projectService.createProjectWithGeneration(userId, body)
     }
 
     @PatchMapping("/{projectId}")
     fun updateProject(
-        request: HttpServletRequest,
         @PathVariable projectId: String,
         @RequestBody body: UpdateProjectRequest
     ): ProjectResponse {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         return projectService.updateProject(userId, UUID.fromString(projectId), body)
     }
 
     @DeleteMapping("/{projectId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteProject(
-        request: HttpServletRequest,
         @PathVariable projectId: String
     ) {
-        val userId = getUserIdFromRequest(request)
+        val userId = getCurrentUserId()
         projectService.deleteProject(userId, UUID.fromString(projectId))
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

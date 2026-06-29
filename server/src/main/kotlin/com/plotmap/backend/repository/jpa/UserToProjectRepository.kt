@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 interface UserToProjectRepository : JpaRepository<UserToProject, UserToProjectId> {
-    fun existsByIdUserAndIdProject(idUser: UUID, idProject: UUID): Boolean
+    fun existsByUserIdAndProjectId(userId: UUID, projectId: UUID): Boolean
 }

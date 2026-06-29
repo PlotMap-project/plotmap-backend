@@ -7,13 +7,13 @@ import java.util.UUID
 
 interface StoryArcToEventRepository : JpaRepository<StoryArcToEvent, StoryArcToEventId> {
 
-    fun findAllByIdArc(idArc: UUID): List<StoryArcToEvent>
+    fun findAllByArcId(arcId: UUID): List<StoryArcToEvent>
 
-    fun findAllByIdEvent(idEvent: UUID): List<StoryArcToEvent>
+    fun findAllByEventId(eventId: UUID): List<StoryArcToEvent>
 
-    fun findAllByIdProject(idProject: UUID): List<StoryArcToEvent>
+    fun findAllByProjectId(projectId: UUID): List<StoryArcToEvent>
 
-    fun deleteAllByIdProjectAndIdEvent(idProject: UUID, idEvent: UUID)
+    fun deleteAllByProjectIdAndEventId(projectId: UUID, eventId: UUID)
 
-    fun deleteAllByIdProject(idProject: UUID)
+    fun deleteAllByProjectId(projectId: UUID)
 }

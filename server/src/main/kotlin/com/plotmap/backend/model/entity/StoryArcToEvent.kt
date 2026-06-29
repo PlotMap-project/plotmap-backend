@@ -9,9 +9,9 @@ import java.io.Serializable
 import java.util.UUID
 
 class StoryArcToEventId(
-    val idProject: UUID = UUID.randomUUID(),
-    val idArc: UUID = UUID.randomUUID(),
-    val idEvent: UUID = UUID.randomUUID()
+    val idProject: UUID = UUID(0, 0),
+    val idArc: UUID = UUID(0, 0),
+    val idEvent: UUID = UUID(0, 0)
 ) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
