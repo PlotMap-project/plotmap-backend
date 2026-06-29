@@ -26,14 +26,12 @@ import java.util.UUID
 class ProjectController(
     private val projectService: ProjectService
 ) {
-    //GET /api/v1/projects
     @GetMapping
     fun getProjects(request: HttpServletRequest): List<ProjectResponse> {
         val userId = getUserIdFromRequest(request)
         return projectService.getProjectsByUserId(userId)
     }
 
-    //POST /api/v1/projects
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createProject(
@@ -44,7 +42,6 @@ class ProjectController(
         return projectService.createProject(userId, body)
     }
 
-    //GET /api/v1/projects/{projectId}
     @GetMapping("/{projectId}")
     fun getProject(
         request: HttpServletRequest,
@@ -54,7 +51,6 @@ class ProjectController(
         return projectService.getProjectById(userId, UUID.fromString(projectId))
     }
 
-    //POST /api/v1/projects/generate
     @PostMapping("/generate")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun generateProject(
@@ -65,7 +61,6 @@ class ProjectController(
         return projectService.createProjectWithGeneration(userId, body)
     }
 
-    // PATCH /api/v1/projects/{projectId}
     @PatchMapping("/{projectId}")
     fun updateProject(
         request: HttpServletRequest,
@@ -76,7 +71,6 @@ class ProjectController(
         return projectService.updateProject(userId, UUID.fromString(projectId), body)
     }
 
-    // DELETE /api/v1/projects/{projectId}
     @DeleteMapping("/{projectId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteProject(

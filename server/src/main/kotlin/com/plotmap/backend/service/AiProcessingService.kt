@@ -37,18 +37,23 @@ class AiProcessingService(
 
     @Transactional
     fun saveInitialGeneration(projectId: UUID, graph: AiGraphResponse) {
-        saveGraphDelta(projectId, graph)
+        saveGraphDelta(projectId, graph, isAppend = false)
     }
 
     @Transactional
     fun appendChapterGeneration(projectId: UUID, graph: AiGraphResponse) {
-        saveGraphDelta(projectId, graph)
+        saveGraphDelta(projectId, graph, isAppend = true)
     }
 
-    private fun saveGraphDelta(projectId: UUID, graph: AiGraphResponse) {
+    private fun saveGraphDelta(
+        projectId: UUID,
+        graph: AiGraphResponse,
+        isAppend: Boolean
+    ) {
         val characterIdMap = mutableMapOf<String, UUID>()
         val storyArcIdMap = mutableMapOf<String, UUID>()
         val eventIdMap = mutableMapOf<String, UUID>()
+
         val existingCharacters = characterRepository.findAllByProjectId(projectId)
         val existingCharactersByName = existingCharacters.associateBy { it.name.normalize() }
 
@@ -71,6 +76,7 @@ class AiProcessingService(
                 characterIdMap[aiCharacter.id] = saved.id
             }
         }
+
         val existingArcs = storyArcRepository.findAllByProjectId(projectId)
         val existingArcsByTitle = existingArcs.associateBy { it.title.normalize() }
 
@@ -92,7 +98,27 @@ class AiProcessingService(
                 storyArcIdMap[aiArc.id] = saved.id
             }
         }
+
+        val previousLastEvent: Event? = if (isAppend) {
+            eventRepository
+                .findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId)
+                .lastOrNull()
+        } else {
+            null
+        }
+
+        val levelOffset = previousLastEvent?.let { it.level + 1 } ?: 0
+
+        if (isAppend) {
+            log.info(
+                "Append mode: previousLastEvent id={}, level={}, levelOffset={}",
+                previousLastEvent?.id, previousLastEvent?.level, levelOffset
+            )
+        }
+
         graph.events.forEach { aiEvent ->
+            val shiftedLevel = (aiEvent.level.coerceAtLeast(0)) + levelOffset
+
             val saved = eventRepository.save(
                 Event(
                     projectId = projectId,
@@ -101,7 +127,7 @@ class AiProcessingService(
                     suggestedSystemRole = parseSystemRole(aiEvent.suggestedSystemRole),
                     impactLevel = aiEvent.impactLevel.coerceIn(1, 10),
                     status = EventStatus.IMPLEMENTED,
-                    level = aiEvent.level.coerceAtLeast(0),
+                    level = shiftedLevel,
                     orderInLevel = aiEvent.orderInLevel.coerceAtLeast(0),
                     color = normalizeColor(aiEvent.color),
                     source = EventSource.AI_GENERATED,
@@ -110,6 +136,7 @@ class AiProcessingService(
             )
             eventIdMap[aiEvent.id] = saved.id
         }
+
         val eventToCharacters = graph.events.flatMap { aiEvent ->
             val savedEventId = eventIdMap[aiEvent.id] ?: return@flatMap emptyList()
             aiEvent.characterIds.mapNotNull { characterId ->
@@ -149,9 +176,34 @@ class AiProcessingService(
         }
         eventEdgeRepository.saveAll(savedEdges)
 
+        if (isAppend && previousLastEvent != null) {
+            val firstNewEvent = graph.events
+                .sortedWith(compareBy({ it.level }, { it.orderInLevel }))
+                .firstOrNull()
+                ?.let { eventIdMap[it.id] }
+                ?.let { eventRepository.findById(it).orElse(null) }
+
+            if (firstNewEvent != null) {
+                val bridgeEdge = EventEdge(
+                    idProject = projectId,
+                    sourceEventId = previousLastEvent.id,
+                    targetEventId = firstNewEvent.id,
+                    type = ConnectionType.TEMPORAL,
+                    description = "Переход между главами"
+                )
+                eventEdgeRepository.save(bridgeEdge)
+                log.info(
+                    "Created bridge edge: {} -> {}",
+                    previousLastEvent.id, firstNewEvent.id
+                )
+            } else {
+                log.warn("Could not find first new event to create bridge edge")
+            }
+        }
+
         log.info(
-            "Saved graph delta: {} events, {} edges, {} characters (deduped), {} arcs (deduped)",
-            eventIdMap.size, savedEdges.size, characterIdMap.size, storyArcIdMap.size
+            "Saved graph delta (isAppend={}): {} events, {} edges, {} characters (deduped), {} arcs (deduped)",
+            isAppend, eventIdMap.size, savedEdges.size, characterIdMap.size, storyArcIdMap.size
         )
     }
 

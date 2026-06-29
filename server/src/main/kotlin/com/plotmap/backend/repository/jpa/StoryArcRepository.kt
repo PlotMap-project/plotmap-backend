@@ -11,4 +11,6 @@ interface StoryArcRepository : JpaRepository<StoryArc, UUID> {
     fun findByIdAndProjectId(id: UUID, projectId: UUID): StoryArc?
 
     fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
+
+    fun deleteAllByProjectId(projectId: UUID)
 }

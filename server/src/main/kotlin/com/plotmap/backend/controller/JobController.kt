@@ -19,7 +19,6 @@ class JobController(
     private val generationJobRepository: GenerationJobRepository,
     private val userToProjectRepository: UserToProjectRepository
 ) {
-    // GET /api/v1/jobs/{jobId}
     @GetMapping("/{jobId}")
     fun getJobStatus(
         request: HttpServletRequest,

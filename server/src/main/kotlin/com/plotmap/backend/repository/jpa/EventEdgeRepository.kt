@@ -11,4 +11,5 @@ interface EventEdgeRepository : JpaRepository<EventEdge, UUID> {
     fun findByIdAndIdProject(id: UUID, idProject: UUID): EventEdge?
 
     fun deleteAllByIdProject(idProject: UUID)
+
 }

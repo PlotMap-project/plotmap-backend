@@ -7,6 +7,6 @@ import java.util.UUID
 interface EventRepository : JpaRepository<Event, UUID> {
 
     fun findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId: UUID): List<Event>
-
+    fun deleteAllByProjectId(projectId: UUID)
     fun findByIdAndProjectId(id: UUID, projectId: UUID): Event?
 }
