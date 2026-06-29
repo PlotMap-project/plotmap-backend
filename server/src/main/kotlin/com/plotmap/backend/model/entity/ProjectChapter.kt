@@ -23,7 +23,7 @@ class ProjectChapter(
     var title: String? = null,
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    val text: String,
+    var text: String,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),

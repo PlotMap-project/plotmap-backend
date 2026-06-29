@@ -21,7 +21,6 @@ class TagController(
     private val tagService: TagService
 ) {
 
-    // POST /projects/{projectId}/tags
     @PostMapping("/tags")
     @ResponseStatus(HttpStatus.CREATED)
     fun createTag(
@@ -33,7 +32,6 @@ class TagController(
         return tagService.createTag(userId, UUID.fromString(projectId), body)
     }
 
-    // DELETE /projects/{projectId}/tags/{tagId}
     @DeleteMapping("/tags/{tagId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteTag(
@@ -45,7 +43,6 @@ class TagController(
         tagService.deleteTag(userId, UUID.fromString(projectId), UUID.fromString(tagId))
     }
 
-    // POST /projects/{projectId}/events/{eventId}/tags/{tagId}
     @PostMapping("/events/{eventId}/tags/{tagId}")
     @ResponseStatus(HttpStatus.CREATED)
     fun assignTagToEvent(
@@ -63,7 +60,6 @@ class TagController(
         )
     }
 
-    // DELETE /projects/{projectId}/events/{eventId}/tags/{tagId}
     @DeleteMapping("/events/{eventId}/tags/{tagId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun unassignTagFromEvent(

@@ -1,6 +1,7 @@
 package com.plotmap.backend.controller
 
 import com.plotmap.backend.dto.request.AddChapterRequest
+import com.plotmap.backend.dto.request.UpdateChapterRequest
 import com.plotmap.backend.dto.response.AddChapterResponse
 import com.plotmap.backend.dto.response.ChapterDetailDto
 import com.plotmap.backend.dto.response.ChapterDto
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -23,7 +25,6 @@ class ChapterController(
     private val chapterService: ChapterService
 ) {
 
-    // GET /api/v1/projects/{projectId}/chapters
     @GetMapping
     fun getChapters(
         request: HttpServletRequest,
@@ -33,7 +34,6 @@ class ChapterController(
         return chapterService.getChapters(userId, UUID.fromString(projectId))
     }
 
-    // GET /api/v1/projects/{projectId}/chapters/{chapterId}
     @GetMapping("/{chapterId}")
     fun getChapterById(
         request: HttpServletRequest,
@@ -48,7 +48,6 @@ class ChapterController(
         )
     }
 
-    // POST /api/v1/projects/{projectId}/chapters
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun addChapter(
@@ -58,6 +57,22 @@ class ChapterController(
     ): AddChapterResponse {
         val userId = getUserIdFromRequest(request)
         return chapterService.addChapter(userId, UUID.fromString(projectId), body)
+    }
+
+    @PutMapping("/{chapterId}")
+    fun updateChapter(
+        request: HttpServletRequest,
+        @PathVariable projectId: String,
+        @PathVariable chapterId: String,
+        @RequestBody body: UpdateChapterRequest
+    ): AddChapterResponse {
+        val userId = getUserIdFromRequest(request)
+        return chapterService.updateChapter(
+            userId,
+            UUID.fromString(projectId),
+            UUID.fromString(chapterId),
+            body
+        )
     }
 
     private fun getUserIdFromRequest(request: HttpServletRequest): UUID {

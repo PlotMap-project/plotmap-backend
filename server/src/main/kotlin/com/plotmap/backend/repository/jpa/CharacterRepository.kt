@@ -11,4 +11,6 @@ interface CharacterRepository : JpaRepository<Character, UUID> {
     fun findByIdAndProjectId(id: UUID, projectId: UUID): Character?
 
     fun existsByIdAndProjectId(id: UUID, projectId: UUID): Boolean
+
+    fun deleteAllByProjectId(projectId: UUID)
 }
