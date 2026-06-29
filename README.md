@@ -13,7 +13,7 @@ Backend-часть проекта **PlotMap** — приложения для п
 - создание AI-проекта по тексту
 - асинхронную генерацию графа через job
 - получение проекта целиком вместе с графом
-- добавление глав
+- добавление и изменение глав
 - CRUD для:
   - событий
   - связей
@@ -107,6 +107,7 @@ http://localhost:8080/api/v1
 ### Chapters
 - `GET /api/v1/projects/{projectId}/chapters`
 - `POST /api/v1/projects/{projectId}/chapters`
+- `PUT /api/v1/projects/{projectId}/chapters/{chapterId}`
 
 ### Events
 - `POST /api/v1/projects/{projectId}/events`
@@ -154,3 +155,4 @@ http://localhost:8080/api/v1
 
 ## Автор
 - София Гареева
+
