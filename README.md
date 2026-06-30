@@ -89,7 +89,6 @@ http://localhost:8080/api/v1
 
 ### Auth
 - `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
 - `POST /api/v1/auth/login/email`
 - `POST /api/v1/auth/login/name`
 
@@ -107,7 +106,7 @@ http://localhost:8080/api/v1
 ### Chapters
 - `GET /api/v1/projects/{projectId}/chapters`
 - `POST /api/v1/projects/{projectId}/chapters`
-- `PUT /api/v1/projects/{projectId}/chapters/{chapterId}`
+- `PATCH /api/v1/projects/{projectId}/chapters/{chapterId}`
 
 ### Events
 - `POST /api/v1/projects/{projectId}/events`
