@@ -39,24 +39,18 @@ class EdgeService(
         }
 
         eventRepository.findByIdAndProjectId(sourceEventId, projectId)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Source event not found in project"
-            )
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Source event not found in project")
 
         eventRepository.findByIdAndProjectId(targetEventId, projectId)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Target event not found in project"
-            )
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Target event not found in project")
 
         val edge = eventEdgeRepository.save(
             EventEdge(
                 idProject = projectId,
                 sourceEventId = sourceEventId,
                 targetEventId = targetEventId,
-                type = parseConnectionType(request.type),
-                description = request.description.trim()
+                type = parseConnectionType(request.type ?: "CAUSAL"),
+                description = request.description?.trim() ?: ""
             )
         )
 
@@ -64,12 +58,7 @@ class EdgeService(
     }
 
     @Transactional
-    fun updateEdge(
-        userId: UUID,
-        projectId: UUID,
-        edgeId: UUID,
-        request: UpdateEdgeRequest
-    ): ConnectionDto {
+    fun updateEdge(userId: UUID, projectId: UUID, edgeId: UUID, request: UpdateEdgeRequest): ConnectionDto {
         ensureAccess(userId, projectId)
         ensureManualProject(projectId)
 
@@ -115,10 +104,7 @@ class EdgeService(
         return try {
             ConnectionType.valueOf(value.trim())
         } catch (_: IllegalArgumentException) {
-            throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Unknown connection type: $value"
-            )
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown connection type: $value")
         }
     }
 

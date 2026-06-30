@@ -74,6 +74,7 @@ class ChapterService(
     @Transactional
     fun addChapter(userId: UUID, projectId: UUID, request: AddChapterRequest): AddChapterResponse {
         ensureAccess(userId, projectId)
+        require(request.text.isNotBlank()) { "Chapter text must not be empty" }
         ensureAiProject(projectId)
 
         val nextOrder = projectChapterRepository.countByProjectId(projectId) + 1

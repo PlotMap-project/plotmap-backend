@@ -31,7 +31,7 @@ class Event(
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "suggested_system_role")
+    @Column(name = "suggested_system_role", columnDefinition = "system_event_role")
     var suggestedSystemRole: SystemEventRole? = null,
 
     @Column(name = "impact_level", nullable = false)
