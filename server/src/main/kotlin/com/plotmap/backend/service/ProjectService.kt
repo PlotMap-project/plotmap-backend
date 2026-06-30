@@ -1,6 +1,5 @@
 package com.plotmap.backend.service
 
-import com.plotmap.backend.config.YandexGptProperties
 import com.plotmap.backend.dto.request.CreateProjectRequest
 import com.plotmap.backend.dto.request.GenerateProjectRequest
 import com.plotmap.backend.dto.request.UpdateProjectRequest
@@ -36,8 +35,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
-import java.util.UUID
 import java.time.Instant
+import java.util.UUID
 
 @Service
 class ProjectService(
@@ -53,8 +52,7 @@ class ProjectService(
     private val storyArcToEventRepository: StoryArcToEventRepository,
     private val tagRepository: TagRepository,
     private val eventToTagRepository: EventToTagRepository,
-    private val generationJobProcessor: GenerationJobProcessor,
-    private val yandexGptProperties: YandexGptProperties
+    private val generationJobProcessor: GenerationJobProcessor
 ) {
 
     fun getProjectsByUserId(userId: UUID): List<ProjectResponse> {
@@ -62,30 +60,30 @@ class ProjectService(
     }
 
     fun getProjectById(userId: UUID, projectId: UUID): ProjectDetailResponse {
-        ensureUserHasAccessToProject(userId, projectId)
+        ensureAccess(userId, projectId)
 
         val project = projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
+            .orElseThrow { ProjectNotFoundException("Project not found") }
 
-        val events = eventRepository.findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId)
+        val events = eventRepository
+            .findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId)
         val edges = eventEdgeRepository.findAllByIdProject(projectId)
         val characters = characterRepository.findAllByProjectId(projectId)
         val storyArcs = storyArcRepository.findAllByProjectId(projectId)
         val tags = tagRepository.findAllByProjectId(projectId)
 
-        val eventToCharacters = eventToCharacterRepository.findAllByIdProject(projectId)
-        val storyArcToEvents = storyArcToEventRepository.findAllByIdProject(projectId)
-        val eventToTags = eventToTagRepository.findAllByIdProject(projectId)
-
-        val characterIdsByEvent = eventToCharacters
+        val characterIdsByEvent = eventToCharacterRepository
+            .findAllByIdProject(projectId)
             .groupBy { it.idEvent }
             .mapValues { (_, list) -> list.map { it.idCharacter.toString() } }
 
-        val arcIdsByEvent = storyArcToEvents
+        val arcIdsByEvent = storyArcToEventRepository
+            .findAllByIdProject(projectId)
             .groupBy { it.idEvent }
             .mapValues { (_, list) -> list.map { it.idArc.toString() } }
 
-        val tagIdsByEvent = eventToTags
+        val tagIdsByEvent = eventToTagRepository
+            .findAllByIdProject(projectId)
             .groupBy { it.idEvent }
             .mapValues { (_, list) -> list.map { it.idTag.toString() } }
 
@@ -112,53 +110,45 @@ class ProjectService(
             )
         }
 
-        val connectionDtos = edges.map { edge ->
-            ConnectionDto(
-                id = edge.id.toString(),
-                sourceEventId = edge.sourceEventId.toString(),
-                targetEventId = edge.targetEventId.toString(),
-                type = edge.type.name,
-                description = edge.description
-            )
-        }
-
-        val characterDtos = characters.map { char ->
-            CharacterDto(
-                id = char.id.toString(),
-                name = char.name,
-                description = char.description,
-                role = char.role.name,
-                color = char.color
-            )
-        }
-
-        val storyArcDtos = storyArcs.map { arc ->
-            StoryArcDto(
-                id = arc.id.toString(),
-                title = arc.title,
-                description = arc.description,
-                color = arc.color
-            )
-        }
-
-        val tagDtos = tags.map { tag ->
-            TagDto(
-                id = tag.id.toString(),
-                name = tag.name,
-                color = tag.color
-            )
-        }
-
         return ProjectDetailResponse(
             id = project.id.toString(),
             title = project.title,
             type = project.type.name,
             description = project.description,
             events = eventDtos,
-            connections = connectionDtos,
-            characters = characterDtos,
-            storyArcs = storyArcDtos,
-            tags = tagDtos,
+            connections = edges.map { edge ->
+                ConnectionDto(
+                    id = edge.id.toString(),
+                    sourceEventId = edge.sourceEventId.toString(),
+                    targetEventId = edge.targetEventId.toString(),
+                    type = edge.type.name,
+                    description = edge.description
+                )
+            },
+            characters = characters.map { char ->
+                CharacterDto(
+                    id = char.id.toString(),
+                    name = char.name,
+                    description = char.description,
+                    role = char.role.name,
+                    color = char.color
+                )
+            },
+            storyArcs = storyArcs.map { arc ->
+                StoryArcDto(
+                    id = arc.id.toString(),
+                    title = arc.title,
+                    description = arc.description,
+                    color = arc.color
+                )
+            },
+            tags = tags.map { tag ->
+                TagDto(
+                    id = tag.id.toString(),
+                    name = tag.name,
+                    color = tag.color
+                )
+            },
             createdAt = project.createdAt
         )
     }
@@ -167,22 +157,19 @@ class ProjectService(
     fun createProject(userId: UUID, request: CreateProjectRequest): ProjectResponse {
         require(request.title.isNotBlank()) { "Title must not be blank" }
 
-        val project = Project(
-            title = request.title.trim(),
-            type = ProjectType.MANUAL,
-            description = request.description.trim()
-        )
-
-        val savedProject = projectRepository.save(project)
-
-        userToProjectRepository.save(
-            UserToProject(
-                idUser = userId,
-                idProject = savedProject.id
+        val project = projectRepository.save(
+            Project(
+                title = request.title.trim(),
+                type = ProjectType.MANUAL,
+                description = request.description.trim()
             )
         )
 
-        return savedProject.toResponse()
+        userToProjectRepository.save(
+            UserToProject(idUser = userId, idProject = project.id)
+        )
+
+        return project.toResponse()
     }
 
     @Transactional
@@ -193,102 +180,98 @@ class ProjectService(
         require(request.name.isNotBlank()) { "Project name must not be blank" }
         require(request.text.isNotBlank()) { "Text must not be empty" }
 
-        val project = Project(
-            title = request.name.trim(),
-            type = ProjectType.AI_GENERATED,
-            description = request.description.trim()
+        val project = projectRepository.save(
+            Project(
+                title = request.name.trim(),
+                type = ProjectType.AI_GENERATED,
+                description = request.description.trim()
+            )
         )
 
-        val savedProject = projectRepository.save(project)
-
         userToProjectRepository.save(
-            UserToProject(
-                idUser = userId,
-                idProject = savedProject.id
-            )
+            UserToProject(idUser = userId, idProject = project.id)
         )
 
         val chapter = projectChapterRepository.save(
             ProjectChapter(
-                projectId = savedProject.id,
+                projectId = project.id,
                 chapterOrder = 1,
-                title = "Chapter 1",
+                title = "Глава 1",
                 text = request.text
             )
         )
 
         val job = generationJobRepository.save(
             GenerationJob(
-                projectId = savedProject.id,
+                projectId = project.id,
                 chapterId = chapter.id,
                 mode = GenerationMode.INITIAL_GENERATION,
                 status = JobStatus.PENDING
             )
         )
 
-        TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
-            override fun afterCommit() {
-                generationJobProcessor.process(job.id)
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() {
+                    generationJobProcessor.process(job.id)
+                }
             }
-        })
-
-        return JobStatusResponse(
-            jobId = job.id.toString(),
-            projectId = savedProject.id.toString(),
-            status = job.status.name,
-            errorMessage = job.errorMessage,
-            result = null,
-            createdAt = job.createdAt,
-            updatedAt = job.updatedAt
         )
-    }
 
-    private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {
-        val exists = userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)
-        if (!exists) {
-            throw ProjectNotFoundException("Project $projectId not found")
-        }
+        return job.toResponse()
     }
 
     @Transactional
-    fun updateProject(userId: UUID, projectId: UUID, request: UpdateProjectRequest): ProjectResponse {
-        ensureUserHasAccessToProject(userId, projectId)
+    fun updateProject(
+        userId: UUID,
+        projectId: UUID,
+        request: UpdateProjectRequest
+    ): ProjectResponse {
+        ensureAccess(userId, projectId)
 
         val project = projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
+            .orElseThrow { ProjectNotFoundException("Project not found") }
 
         request.title?.let {
             require(it.isNotBlank()) { "Title must not be blank" }
             project.title = it.trim()
         }
-
-        request.description?.let {
-            project.description = it.trim()
-        }
-
+        request.description?.let { project.description = it.trim() }
         project.updatedAt = Instant.now()
 
-        val saved = projectRepository.save(project)
-        return saved.toResponse()
+        return projectRepository.save(project).toResponse()
     }
 
     @Transactional
     fun deleteProject(userId: UUID, projectId: UUID) {
-        ensureUserHasAccessToProject(userId, projectId)
+        ensureAccess(userId, projectId)
 
-        projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
+        val project = projectRepository.findById(projectId)
+            .orElseThrow { ProjectNotFoundException("Project not found") }
 
-        projectRepository.deleteById(projectId)
+        projectRepository.delete(project)
     }
 
-    private fun Project.toResponse(): ProjectResponse {
-        return ProjectResponse(
-            id = this.id.toString(),
-            title = this.title,
-            type = this.type.name,
-            description = this.description,
-            createdAt = this.createdAt
-        )
+    private fun ensureAccess(userId: UUID, projectId: UUID) {
+        if (!userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)) {
+            throw ProjectNotFoundException("Project not found")
+        }
     }
+
+    private fun Project.toResponse() = ProjectResponse(
+        id = id.toString(),
+        title = title,
+        type = type.name,
+        description = description,
+        createdAt = createdAt
+    )
+
+    private fun GenerationJob.toResponse() = JobStatusResponse(
+        jobId = id.toString(),
+        projectId = projectId.toString(),
+        status = status.name,
+        errorMessage = errorMessage,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
 }

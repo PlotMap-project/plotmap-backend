@@ -19,7 +19,7 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}")
 class TagController(
     private val tagService: TagService
-) {
+): BaseController() {
 
     @PostMapping("/tags")
     @ResponseStatus(HttpStatus.CREATED)
@@ -75,11 +75,5 @@ class TagController(
             UUID.fromString(eventId),
             UUID.fromString(tagId)
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

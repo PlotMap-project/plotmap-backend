@@ -10,6 +10,7 @@ import com.plotmap.backend.service.ChapterService
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -23,7 +24,7 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}/chapters")
 class ChapterController(
     private val chapterService: ChapterService
-) {
+) : BaseController() {
 
     @GetMapping
     fun getChapters(
@@ -59,7 +60,7 @@ class ChapterController(
         return chapterService.addChapter(userId, UUID.fromString(projectId), body)
     }
 
-    @PutMapping("/{chapterId}")
+    @PatchMapping("/{chapterId}")
     fun updateChapter(
         request: HttpServletRequest,
         @PathVariable projectId: String,
@@ -73,11 +74,5 @@ class ChapterController(
             UUID.fromString(chapterId),
             body
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

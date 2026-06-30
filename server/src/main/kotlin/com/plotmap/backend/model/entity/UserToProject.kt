@@ -8,20 +8,10 @@ import jakarta.persistence.Table
 import java.io.Serializable
 import java.util.UUID
 
-class UserToProjectId(
-    val idUser: UUID = UUID.randomUUID(),
-    val idProject: UUID = UUID.randomUUID()
-) : Serializable {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is UserToProjectId) return false
-        return idUser == other.idUser && idProject == other.idProject
-    }
-
-    override fun hashCode(): Int {
-        return 31 * idUser.hashCode() + idProject.hashCode()
-    }
-}
+data class UserToProjectId(
+    val idUser: UUID = UUID(0L, 0L),
+    val idProject: UUID = UUID(0L, 0L)
+) : Serializable
 
 @Entity
 @Table(name = "user_to_projects")

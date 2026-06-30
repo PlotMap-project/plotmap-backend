@@ -8,26 +8,11 @@ import jakarta.persistence.Table
 import java.io.Serializable
 import java.util.UUID
 
-class EventToCharacterId(
-    val idProject: UUID = UUID.randomUUID(),
-    val idEvent: UUID = UUID.randomUUID(),
-    val idCharacter: UUID = UUID.randomUUID()
-) : Serializable {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is EventToCharacterId) return false
-        return idProject == other.idProject
-                && idEvent == other.idEvent
-                && idCharacter == other.idCharacter
-    }
-
-    override fun hashCode(): Int {
-        var result = idProject.hashCode()
-        result = 31 * result + idEvent.hashCode()
-        result = 31 * result + idCharacter.hashCode()
-        return result
-    }
-}
+data class EventToCharacterId(
+    val idProject: UUID = UUID(0L, 0L),
+    val idEvent: UUID = UUID(0L, 0L),
+    val idCharacter: UUID = UUID(0L, 0L)
+) : Serializable
 
 @Entity
 @Table(name = "event_to_characters")

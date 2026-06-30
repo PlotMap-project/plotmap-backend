@@ -5,13 +5,20 @@ import com.plotmap.backend.exception.ProjectNotFoundException
 import com.plotmap.backend.model.entity.GenerationJob
 import com.plotmap.backend.model.entity.Project
 import com.plotmap.backend.model.entity.ProjectChapter
-import com.plotmap.backend.model.enum.GenerationMode
+import com.plotmap.backend.model.enum.JobStatus
 import com.plotmap.backend.model.enum.ProjectType
+import com.plotmap.backend.repository.jpa.CharacterRepository
+import com.plotmap.backend.repository.jpa.EventEdgeRepository
+import com.plotmap.backend.repository.jpa.EventRepository
+import com.plotmap.backend.repository.jpa.EventToCharacterRepository
+import com.plotmap.backend.repository.jpa.EventToTagRepository
 import com.plotmap.backend.repository.jpa.GenerationJobRepository
 import com.plotmap.backend.repository.jpa.ProjectChapterRepository
 import com.plotmap.backend.repository.jpa.ProjectRepository
+import com.plotmap.backend.repository.jpa.StoryArcRepository
+import com.plotmap.backend.repository.jpa.StoryArcToEventRepository
 import com.plotmap.backend.repository.jpa.UserToProjectRepository
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -32,6 +39,14 @@ class ChapterServiceTest {
     @Mock lateinit var projectChapterRepository: ProjectChapterRepository
     @Mock lateinit var generationJobRepository: GenerationJobRepository
     @Mock lateinit var generationJobProcessor: GenerationJobProcessor
+
+    @Mock lateinit var eventRepository: EventRepository
+    @Mock lateinit var eventEdgeRepository: EventEdgeRepository
+    @Mock lateinit var characterRepository: CharacterRepository
+    @Mock lateinit var eventToCharacterRepository: EventToCharacterRepository
+    @Mock lateinit var storyArcRepository: StoryArcRepository
+    @Mock lateinit var storyArcToEventRepository: StoryArcToEventRepository
+    @Mock lateinit var eventToTagRepository: EventToTagRepository
 
     @InjectMocks
     lateinit var chapterService: ChapterService
@@ -89,27 +104,37 @@ class ChapterServiceTest {
         val userId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
 
-        val manualProject = Project(
-            id = projectId, title = "Test", type = ProjectType.MANUAL
+        val aiProject = Project(
+            id = projectId,
+            title = "Test",
+            type = ProjectType.AI_GENERATED
         )
 
         whenever(userToProjectRepository.existsByIdUserAndIdProject(userId, projectId))
             .thenReturn(true)
         whenever(projectRepository.findById(projectId))
-            .thenReturn(Optional.of(manualProject))
+            .thenReturn(Optional.of(aiProject))
         whenever(projectChapterRepository.countByProjectId(projectId))
             .thenReturn(3)
-        whenever(projectChapterRepository.save(any<ProjectChapter>())).thenAnswer { invocation ->
-            invocation.getArgument<ProjectChapter>(0)
+        whenever(projectChapterRepository.save(any<ProjectChapter>()))
+            .thenAnswer { it.getArgument<ProjectChapter>(0) }
+        whenever(generationJobRepository.save(any<GenerationJob>()))
+            .thenAnswer { it.getArgument<GenerationJob>(0) }
+
+        TransactionSynchronizationManager.initSynchronization()
+        try {
+            val result = chapterService.addChapter(
+                userId,
+                projectId,
+                AddChapterRequest(title = "Ch 4", text = "Some text")
+            )
+
+            assertEquals(4, result.chapter.chapterOrder)
+            assertEquals("Ch 4", result.chapter.title)
+            assertEquals(JobStatus.PENDING.name, result.job.status)
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization()
         }
-
-        val result = chapterService.addChapter(
-            userId, projectId,
-            AddChapterRequest(title = "Ch 4", text = "Some text")
-        )
-
-        assertEquals(4, result.chapterOrder)
-        assertEquals("Ch 4", result.title)
     }
 
     @Test
@@ -129,12 +154,10 @@ class ChapterServiceTest {
             .thenReturn(Optional.of(aiProject))
         whenever(projectChapterRepository.countByProjectId(projectId))
             .thenReturn(1)
-        whenever(projectChapterRepository.save(any<ProjectChapter>())).thenAnswer { invocation ->
-            invocation.getArgument<ProjectChapter>(0)
-        }
-        whenever(generationJobRepository.save(any<GenerationJob>())).thenAnswer { invocation ->
-            invocation.getArgument<GenerationJob>(0)
-        }
+        whenever(projectChapterRepository.save(any<ProjectChapter>()))
+            .thenAnswer { it.getArgument<ProjectChapter>(0) }
+        whenever(generationJobRepository.save(any<GenerationJob>()))
+            .thenAnswer { it.getArgument<GenerationJob>(0) }
 
         TransactionSynchronizationManager.initSynchronization()
         try {
@@ -144,7 +167,8 @@ class ChapterServiceTest {
                 AddChapterRequest(title = "Ch 2", text = "New chapter text")
             )
 
-            assertEquals(2, result.chapterOrder)
+            assertEquals(2, result.chapter.chapterOrder)
+            assertEquals(JobStatus.PENDING.name, result.job.status)
         } finally {
             TransactionSynchronizationManager.clearSynchronization()
         }

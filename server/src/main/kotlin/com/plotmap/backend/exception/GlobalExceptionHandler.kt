@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.bind.MethodArgumentNotValidException
 
 data class ErrorResponse(
     val error: String,
@@ -16,6 +17,13 @@ data class ErrorResponse(
 class GlobalExceptionHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
+
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatus(e: ResponseStatusException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(e.statusCode)
+            .body(ErrorResponse(e.statusCode.toString(), e.reason ?: "Request failed"))
+    }
 
     @ExceptionHandler(EmailAlreadyExistsException::class)
     fun handleEmailExists(e: EmailAlreadyExistsException): ResponseEntity<ErrorResponse> {
@@ -45,6 +53,13 @@ class GlobalExceptionHandler {
             .body(ErrorResponse("PROJECT_NOT_FOUND", e.message ?: "Project not found"))
     }
 
+    @ExceptionHandler(ContentFilteredException::class)
+    fun handleContentFiltered(e: ContentFilteredException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ErrorResponse("CONTENT_FILTERED", e.message ?: "Content was filtered by AI model"))
+    }
+
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ErrorResponse> {
         return ResponseEntity
@@ -54,27 +69,18 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception::class)
     fun handleGeneric(e: Exception): ResponseEntity<ErrorResponse> {
-        log.error("Unhandled exception happened", e)
-
+        log.error("Unhandled exception: {}", e.javaClass.simpleName, e)
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(
-                ErrorResponse(
-                    "INTERNAL_ERROR",
-                    e.message ?: "Internal error, god left us"
-                )
-            )
+            .body(ErrorResponse("INTERNAL_ERROR", "An unexpected error occurred"))
     }
 
-    @ExceptionHandler(ResponseStatusException::class)
-    fun handleResponseStatusException(e: ResponseStatusException): ResponseEntity<ErrorResponse> {
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleValidation(e: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+        val message = e.bindingResult.fieldErrors
+            .joinToString("; ") { "${it.field}: ${it.defaultMessage}" }
         return ResponseEntity
-            .status(e.statusCode)
-            .body(
-                ErrorResponse(
-                    e.statusCode.toString(),
-                    e.reason ?: "Request failed"
-                )
-            )
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse("VALIDATION_ERROR", message))
     }
 }

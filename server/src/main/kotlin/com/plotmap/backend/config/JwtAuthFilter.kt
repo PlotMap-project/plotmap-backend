@@ -4,6 +4,7 @@ import com.plotmap.backend.service.JwtService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
@@ -14,6 +15,8 @@ class JwtAuthFilter(
     private val jwtService: JwtService
 ) : OncePerRequestFilter() {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -21,20 +24,32 @@ class JwtAuthFilter(
     ) {
         val authHeader = request.getHeader("Authorization")
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        if (
+            !authHeader.isNullOrBlank()
+            && authHeader.startsWith("Bearer ", ignoreCase = true)
+            && SecurityContextHolder.getContext().authentication == null
+        ) {
             val token = authHeader.substring(7).trim()
 
-            if (jwtService.isTokenValid(token)) {
-                val userId = jwtService.validateTokenAndGetUserId(token)
+            if (token.isNotEmpty()) {
+                runCatching {
+                    if (jwtService.isTokenValid(token)) {
+                        val userId = jwtService.validateTokenAndGetUserId(token).toString()
 
-                request.setAttribute("userId", userId.toString())
+                        request.setAttribute("userId", userId)
 
-                val authentication = UsernamePasswordAuthenticationToken(
-                    userId.toString(),
-                    null,
-                    emptyList()
-                )
-                SecurityContextHolder.getContext().authentication = authentication
+                        val authentication = UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            emptyList()
+                        )
+
+                        SecurityContextHolder.getContext().authentication = authentication
+                    }
+                }.onFailure { ex ->
+                    SecurityContextHolder.clearContext()
+                    log.debug("JWT processing failed: {}", ex.message)
+                }
             }
         }
 

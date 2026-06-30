@@ -1,11 +1,11 @@
 package com.plotmap.backend.client
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.plotmap.backend.config.YandexGptProperties
 import com.plotmap.backend.exception.ContentFilteredException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -25,15 +25,15 @@ class YandexGptClient(
         require(properties.agentId.isNotBlank()) { "Agent ID is not configured" }
         require(properties.organization.isNotBlank()) { "Organization is not configured" }
 
-        val cleanedAgentId = properties.agentId.trim().removePrefix("\"").removeSuffix("\"")
-        val cleanedOrganization = properties.organization.trim().removePrefix("\"").removeSuffix("\"")
-
-        log.info("Using agentId='{}', organization='{}'", cleanedAgentId, cleanedOrganization)
+        val cleanedAgentId = properties.agentId.trim().removeSurrounding("\"")
+        val cleanedOrganization = properties.organization.trim().removeSurrounding("\"")
 
         val requestBody = mapOf(
             "prompt" to mapOf("id" to cleanedAgentId),
             "input" to text
         )
+
+        log.debug("Sending request to Yandex GPT agent, inputLength={}", text.length)
 
         val httpRequest = HttpRequest.newBuilder()
             .uri(URI.create("https://ai.api.cloud.yandex.net/v1/responses"))
@@ -52,18 +52,18 @@ class YandexGptClient(
             HttpResponse.BodyHandlers.ofString()
         )
 
-        if (response.statusCode() < 200 || response.statusCode() > 299) {
-            log.error("Yandex Agent request failed: {} {}", response.statusCode(), response.body())
+        log.debug("Yandex GPT response received: statusCode={}", response.statusCode())
+
+        if (response.statusCode() !in 200..299) {
+            log.error("Yandex GPT request failed: statusCode={}", response.statusCode())
             throw IllegalStateException(
-                "Yandex Agent request failed: ${response.statusCode()} ${response.body()}"
+                "Yandex Agent request failed with status: ${response.statusCode()}"
             )
         }
 
-        log.info("Full agent response body: {}", response.body())
-
         val root = objectMapper.readTree(response.body())
-        val status = root.path("status").asText()
-        val incompleteReason = root.path("incomplete_details").path("reason").asText()
+        val status = root.path("status").asText("")
+        val incompleteReason = root.path("incomplete_details").path("reason").asText("")
 
         if (status == "incomplete" && incompleteReason == "content_filter") {
             val refusalText = root.path("output")
@@ -73,51 +73,43 @@ class YandexGptClient(
                 ?.takeIf { it.isArray && it.size() > 0 }
                 ?.get(0)
                 ?.path("text")
-                ?.asText()
+                ?.asText("")
                 ?.trim()
+                ?.takeIf { it.isNotBlank() }
                 ?: "Content filtered by model"
 
             throw ContentFilteredException("Chunk was filtered by model: $refusalText")
         }
+
         val outputText = extractOutputText(root)
-        log.info("Extracted output text length={}", outputText.length)
-        log.debug("Extracted output text: {}", outputText)
+        log.info("Yandex GPT generation completed: outputLength={}", outputText.length)
         return outputText
     }
 
     private fun extractOutputText(root: JsonNode): String {
-        val directOutputText = root.path("output_text").asText().trim()
-        if (directOutputText.isNotBlank()) {
-            return directOutputText
-        }
+        val directOutputText = root.path("output_text").asText("").trim()
+        if (directOutputText.isNotBlank()) return directOutputText
 
-        val directCamelOutputText = root.path("outputText").asText().trim()
-        if (directCamelOutputText.isNotBlank()) {
-            return directCamelOutputText
-        }
+        val directCamelOutputText = root.path("outputText").asText("").trim()
+        if (directCamelOutputText.isNotBlank()) return directCamelOutputText
 
         val outputArray = root.path("output")
         if (outputArray.isArray) {
-            val parts = mutableListOf<String>()
-
-            outputArray.forEach { outputItem ->
+            val parts = outputArray.flatMap { outputItem ->
                 val contentArray = outputItem.path("content")
                 if (contentArray.isArray) {
-                    contentArray.forEach { contentItem ->
-                        val type = contentItem.path("type").asText()
-                        val text = contentItem.path("text").asText()
-
-                        if (type == "output_text" && text.isNotBlank()) {
-                            parts.add(text)
+                    contentArray
+                        .filter { it.path("type").asText("") == "output_text" }
+                        .mapNotNull {
+                            it.path("text").asText("").trim().takeIf(String::isNotBlank)
                         }
-                    }
+                } else {
+                    emptyList()
                 }
             }
 
             val joined = parts.joinToString("\n").trim()
-            if (joined.isNotBlank()) {
-                return joined
-            }
+            if (joined.isNotBlank()) return joined
         }
 
         throw IllegalStateException("Agent response does not contain output text in expected format")

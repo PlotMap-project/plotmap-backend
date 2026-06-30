@@ -6,6 +6,7 @@ import com.plotmap.backend.dto.response.StoryArcDto
 import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.StoryArcService
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -21,14 +22,14 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}/story-arcs")
 class StoryArcController(
     private val storyArcService: StoryArcService
-) {
+): BaseController() {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createStoryArc(
         request: HttpServletRequest,
         @PathVariable projectId: String,
-        @RequestBody body: CreateStoryArcRequest
+        @RequestBody @Valid body: CreateStoryArcRequest
     ): StoryArcDto {
         val userId = getUserIdFromRequest(request)
         return storyArcService.createStoryArc(userId, UUID.fromString(projectId), body)
@@ -58,11 +59,5 @@ class StoryArcController(
         storyArcService.deleteStoryArc(
             userId, UUID.fromString(projectId), UUID.fromString(arcId)
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

@@ -27,12 +27,8 @@ class EdgeService(
 ) {
 
     @Transactional
-    fun createEdge(
-        userId: UUID,
-        projectId: UUID,
-        request: CreateEdgeRequest
-    ): ConnectionDto {
-        ensureUserHasAccessToProject(userId, projectId)
+    fun createEdge(userId: UUID, projectId: UUID, request: CreateEdgeRequest): ConnectionDto {
+        ensureAccess(userId, projectId)
         ensureManualProject(projectId)
 
         val sourceEventId = UUID.fromString(request.sourceEventId)
@@ -42,23 +38,19 @@ class EdgeService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Self-loop is not allowed")
         }
 
-        val sourceExists = eventRepository.findByIdAndProjectId(sourceEventId, projectId)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Source event $sourceEventId not found in project"
-            )
+        eventRepository.findByIdAndProjectId(sourceEventId, projectId)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Source event not found in project")
 
-        val targetExists = eventRepository.findByIdAndProjectId(targetEventId, projectId)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Target event $targetEventId not found in project"
-            )
+        eventRepository.findByIdAndProjectId(targetEventId, projectId)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Target event not found in project")
 
         val edge = eventEdgeRepository.save(
             EventEdge(
                 idProject = projectId,
                 sourceEventId = sourceEventId,
                 targetEventId = targetEventId,
-                type = parseConnectionType(request.type),
-                description = request.description.trim()
+                type = parseConnectionType(request.type ?: "CAUSAL"),
+                description = request.description?.trim() ?: ""
             )
         )
 
@@ -66,56 +58,44 @@ class EdgeService(
     }
 
     @Transactional
-    fun updateEdge(
-        userId: UUID,
-        projectId: UUID,
-        edgeId: UUID,
-        request: UpdateEdgeRequest
-    ): ConnectionDto {
-        ensureUserHasAccessToProject(userId, projectId)
+    fun updateEdge(userId: UUID, projectId: UUID, edgeId: UUID, request: UpdateEdgeRequest): ConnectionDto {
+        ensureAccess(userId, projectId)
         ensureManualProject(projectId)
 
         val edge = eventEdgeRepository.findByIdAndIdProject(edgeId, projectId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Edge $edgeId not found")
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Edge not found")
 
-        request.type?.let {
-            edge.type = parseConnectionType(it)
-        }
-
-        request.description?.let {
-            edge.description = it.trim()
-        }
-
+        request.type?.let { edge.type = parseConnectionType(it) }
+        request.description?.let { edge.description = it.trim() }
         edge.updatedAt = Instant.now()
-        val saved = eventEdgeRepository.save(edge)
-        return saved.toDto()
+
+        return eventEdgeRepository.save(edge).toDto()
     }
 
     @Transactional
     fun deleteEdge(userId: UUID, projectId: UUID, edgeId: UUID) {
-        ensureUserHasAccessToProject(userId, projectId)
+        ensureAccess(userId, projectId)
         ensureManualProject(projectId)
 
         val edge = eventEdgeRepository.findByIdAndIdProject(edgeId, projectId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Edge $edgeId not found")
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Edge not found")
 
         eventEdgeRepository.delete(edge)
     }
 
-    private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {
+    private fun ensureAccess(userId: UUID, projectId: UUID) {
         if (!userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)) {
-            throw ProjectNotFoundException("Project $projectId not found")
+            throw ProjectNotFoundException("Project not found")
         }
     }
 
     private fun ensureManualProject(projectId: UUID) {
         val project = projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
-
+            .orElseThrow { ProjectNotFoundException("Project not found") }
         if (project.type != ProjectType.MANUAL) {
             throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Edges can only be managed in MANUAL projects"
+                "This operation is only available for MANUAL projects"
             )
         }
     }
@@ -124,19 +104,15 @@ class EdgeService(
         return try {
             ConnectionType.valueOf(value.trim())
         } catch (_: IllegalArgumentException) {
-            throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Unknown connection type: $value"
-            )
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown connection type: $value")
         }
     }
 
-    private fun EventEdge.toDto(): ConnectionDto {
-        return ConnectionDto(
-            id = this.id.toString(),
-            sourceEventId = this.sourceEventId.toString(),
-            targetEventId = this.targetEventId.toString(),
-            type = this.type.name,
-            description = this.description
-        )
-    }
+    private fun EventEdge.toDto() = ConnectionDto(
+        id = id.toString(),
+        sourceEventId = sourceEventId.toString(),
+        targetEventId = targetEventId.toString(),
+        type = type.name,
+        description = description
+    )
 }

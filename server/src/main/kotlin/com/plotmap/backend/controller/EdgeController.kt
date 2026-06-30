@@ -21,7 +21,7 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}/edges")
 class EdgeController(
     private val edgeService: EdgeService
-) {
+): BaseController() {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -56,11 +56,5 @@ class EdgeController(
     ) {
         val userId = getUserIdFromRequest(request)
         edgeService.deleteEdge(userId, UUID.fromString(projectId), UUID.fromString(edgeId))
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

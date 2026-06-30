@@ -63,13 +63,13 @@ class EventService(
             Event(
                 projectId = projectId,
                 title = request.title.trim(),
-                description = request.description.trim(),
-                suggestedSystemRole = parseSystemRole(request.suggestedSystemRole),
-                impactLevel = request.impactLevel.coerceIn(1, 10),
-                status = parseEventStatus(request.status),
-                userNotes = request.userNotes.trim(),
-                level = request.level.coerceAtLeast(0),
-                orderInLevel = request.orderInLevel.coerceAtLeast(0),
+                description = request.description?.trim() ?: "",
+                suggestedSystemRole = request.suggestedSystemRole?.let { parseSystemRole(it) },
+                impactLevel = (request.impactLevel ?: 5).coerceIn(1, 10),
+                status = parseEventStatus(request.status ?: "PLANNED"),
+                userNotes = request.userNotes?.trim() ?: "",
+                level = (request.level ?: 0).coerceAtLeast(0),
+                orderInLevel = (request.orderInLevel ?: 0).coerceAtLeast(0),
                 customPositionX = request.customPositionX,
                 customPositionY = request.customPositionY,
                 color = normalizeColor(request.color),
@@ -78,26 +78,14 @@ class EventService(
             )
         )
 
-        replaceCharacters(
-            projectId = projectId,
-            eventId = event.id,
-            characterIds = request.characterIds
-        )
+        replaceCharacters(projectId, event.id, request.characterIds ?: emptyList())
+        replaceStoryArcs(projectId, event.id, request.storyArcIds ?: emptyList())
+        replaceTags(projectId, event.id, request.tagIds ?: emptyList())
 
-        replaceStoryArcs(
-            projectId = projectId,
-            eventId = event.id,
-            storyArcIds = request.storyArcIds
+        return mapEventToDto(
+            eventRepository.findByIdAndProjectId(event.id, projectId)
+                ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found after creation")
         )
-
-        replaceTags(
-            projectId = projectId,
-            eventId = event.id,
-            tagIds = request.tagIds
-        )
-
-        return mapEventToDto(eventRepository.findByIdAndProjectId(event.id, projectId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found after creation"))
     }
 
     @Transactional
@@ -130,61 +118,23 @@ class EventService(
             require(it.isNotBlank()) { "Title must not be blank" }
             event.title = it.trim()
         }
-
-        request.description?.let {
-            event.description = it.trim()
-        }
-
-        request.suggestedSystemRole?.let {
-            event.suggestedSystemRole = parseSystemRole(it)
-        }
-
-        request.impactLevel?.let {
-            event.impactLevel = it.coerceIn(1, 10)
-        }
-
-        request.status?.let {
-            event.status = parseEventStatus(it)
-        }
-
-        request.userNotes?.let {
-            event.userNotes = it.trim()
-        }
-
-        request.level?.let {
-            event.level = it.coerceAtLeast(0)
-        }
-
-        request.orderInLevel?.let {
-            event.orderInLevel = it.coerceAtLeast(0)
-        }
-
-        request.customPositionX?.let {
-            event.customPositionX = it
-        }
-
-        request.customPositionY?.let {
-            event.customPositionY = it
-        }
-
-        request.color?.let {
-            event.color = normalizeColor(it)
-        }
+        request.description?.let { event.description = it.trim() }
+        request.suggestedSystemRole?.let { event.suggestedSystemRole = parseSystemRole(it) }
+        request.impactLevel?.let { event.impactLevel = it.coerceIn(1, 10) }
+        request.status?.let { event.status = parseEventStatus(it) }
+        request.userNotes?.let { event.userNotes = it.trim() }
+        request.level?.let { event.level = it.coerceAtLeast(0) }
+        request.orderInLevel?.let { event.orderInLevel = it.coerceAtLeast(0) }
+        request.customPositionX?.let { event.customPositionX = it }
+        request.customPositionY?.let { event.customPositionY = it }
+        request.color?.let { event.color = normalizeColor(it) }
 
         event.updatedAt = Instant.now()
         val savedEvent = eventRepository.save(event)
 
-        request.characterIds?.let {
-            replaceCharacters(projectId, eventId, it)
-        }
-
-        request.storyArcIds?.let {
-            replaceStoryArcs(projectId, eventId, it)
-        }
-
-        request.tagIds?.let {
-            replaceTags(projectId, eventId, it)
-        }
+        request.characterIds?.let { replaceCharacters(projectId, eventId, it) }
+        request.storyArcIds?.let { replaceStoryArcs(projectId, eventId, it) }
+        request.tagIds?.let { replaceTags(projectId, eventId, it) }
 
         return mapEventToDto(savedEvent)
     }
@@ -216,8 +166,7 @@ class EventService(
     }
 
     private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {
-        val exists = userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)
-        if (!exists) {
+        if (!userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)) {
             throw ProjectNotFoundException("Project $projectId not found")
         }
     }
@@ -249,18 +198,11 @@ class EventService(
         }
     }
 
-    private fun replaceCharacters(
-        projectId: UUID,
-        eventId: UUID,
-        characterIds: List<String>
-    ) {
-        val parsedIds = characterIds
-            .map { UUID.fromString(it) }
-            .distinct()
+    private fun replaceCharacters(projectId: UUID, eventId: UUID, characterIds: List<String>) {
+        val parsedIds = characterIds.map { UUID.fromString(it) }.distinct()
 
         parsedIds.forEach { characterId ->
-            val exists = characterRepository.existsByIdAndProjectId(characterId, projectId)
-            if (!exists) {
+            if (!characterRepository.existsByIdAndProjectId(characterId, projectId)) {
                 throw ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Character $characterId does not belong to project $projectId"
@@ -269,30 +211,16 @@ class EventService(
         }
 
         eventToCharacterRepository.deleteAllByIdProjectAndIdEvent(projectId, eventId)
-
-        val links = parsedIds.map { characterId ->
-            EventToCharacter(
-                idProject = projectId,
-                idEvent = eventId,
-                idCharacter = characterId
-            )
-        }
-
-        eventToCharacterRepository.saveAll(links)
+        eventToCharacterRepository.saveAll(
+            parsedIds.map { EventToCharacter(idProject = projectId, idEvent = eventId, idCharacter = it) }
+        )
     }
 
-    private fun replaceStoryArcs(
-        projectId: UUID,
-        eventId: UUID,
-        storyArcIds: List<String>
-    ) {
-        val parsedIds = storyArcIds
-            .map { UUID.fromString(it) }
-            .distinct()
+    private fun replaceStoryArcs(projectId: UUID, eventId: UUID, storyArcIds: List<String>) {
+        val parsedIds = storyArcIds.map { UUID.fromString(it) }.distinct()
 
         parsedIds.forEach { arcId ->
-            val exists = storyArcRepository.existsByIdAndProjectId(arcId, projectId)
-            if (!exists) {
+            if (!storyArcRepository.existsByIdAndProjectId(arcId, projectId)) {
                 throw ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Story arc $arcId does not belong to project $projectId"
@@ -301,30 +229,16 @@ class EventService(
         }
 
         storyArcToEventRepository.deleteAllByIdProjectAndIdEvent(projectId, eventId)
-
-        val links = parsedIds.map { arcId ->
-            StoryArcToEvent(
-                idProject = projectId,
-                idArc = arcId,
-                idEvent = eventId
-            )
-        }
-
-        storyArcToEventRepository.saveAll(links)
+        storyArcToEventRepository.saveAll(
+            parsedIds.map { StoryArcToEvent(idProject = projectId, idArc = it, idEvent = eventId) }
+        )
     }
 
-    private fun replaceTags(
-        projectId: UUID,
-        eventId: UUID,
-        tagIds: List<String>
-    ) {
-        val parsedIds = tagIds
-            .map { UUID.fromString(it) }
-            .distinct()
+    private fun replaceTags(projectId: UUID, eventId: UUID, tagIds: List<String>) {
+        val parsedIds = tagIds.map { UUID.fromString(it) }.distinct()
 
         parsedIds.forEach { tagId ->
-            val exists = tagRepository.existsByIdAndProjectId(tagId, projectId)
-            if (!exists) {
+            if (!tagRepository.existsByIdAndProjectId(tagId, projectId)) {
                 throw ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Tag $tagId does not belong to project $projectId"
@@ -333,25 +247,16 @@ class EventService(
         }
 
         eventToTagRepository.deleteAllByIdProjectAndIdEvent(projectId, eventId)
-
-        val links = parsedIds.map { tagId ->
-            EventToTag(
-                idProject = projectId,
-                idEvent = eventId,
-                idTag = tagId
-            )
-        }
-
-        eventToTagRepository.saveAll(links)
+        eventToTagRepository.saveAll(
+            parsedIds.map { EventToTag(idProject = projectId, idEvent = eventId, idTag = it) }
+        )
     }
 
     private fun mapEventToDto(event: Event): EventDto {
         val characterIds = eventToCharacterRepository.findAllByIdEvent(event.id)
             .map { it.idCharacter.toString() }
-
         val storyArcIds = storyArcToEventRepository.findAllByIdEvent(event.id)
             .map { it.idArc.toString() }
-
         val tagIds = eventToTagRepository.findAllByIdEvent(event.id)
             .map { it.idTag.toString() }
 
@@ -381,10 +286,7 @@ class EventService(
         return try {
             SystemEventRole.valueOf(value.trim())
         } catch (_: IllegalArgumentException) {
-            throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Unknown suggestedSystemRole: $value"
-            )
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown suggestedSystemRole: $value")
         }
     }
 
@@ -392,24 +294,16 @@ class EventService(
         return try {
             EventStatus.valueOf(value.trim())
         } catch (_: IllegalArgumentException) {
-            throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Unknown event status: $value"
-            )
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown event status: $value")
         }
     }
 
     private fun normalizeColor(value: String?): String? {
         if (value.isNullOrBlank()) return null
         val trimmed = value.trim()
-
         if (!Regex("^#[0-9A-Fa-f]{6}$").matches(trimmed)) {
-            throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Invalid color format: $value"
-            )
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid color format: $value")
         }
-
         return trimmed
     }
 }
