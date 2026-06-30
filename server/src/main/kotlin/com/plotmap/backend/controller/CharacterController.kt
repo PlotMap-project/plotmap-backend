@@ -6,6 +6,7 @@ import com.plotmap.backend.dto.response.CharacterDto
 import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.CharacterService
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -21,14 +22,14 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}/characters")
 class CharacterController(
     private val characterService: CharacterService
-) {
+): BaseController() {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createCharacter(
         request: HttpServletRequest,
         @PathVariable projectId: String,
-        @RequestBody body: CreateCharacterRequest
+        @RequestBody @Valid body: CreateCharacterRequest
     ): CharacterDto {
         val userId = getUserIdFromRequest(request)
         return characterService.createCharacter(userId, UUID.fromString(projectId), body)
@@ -58,11 +59,5 @@ class CharacterController(
         characterService.deleteCharacter(
             userId, UUID.fromString(projectId), UUID.fromString(characterId)
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

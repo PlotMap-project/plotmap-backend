@@ -17,17 +17,19 @@ class JwtService(
     private val expiration: Long
 ) {
     private val signingKey: SecretKey by lazy {
-        Keys.hmacShaKeyFor(secret.toByteArray())
+        val keyBytes = secret.toByteArray()
+        require(keyBytes.size >= 32) {
+            "jwt.secret must be at least 32 characters long"
+        }
+        Keys.hmacShaKeyFor(keyBytes)
     }
 
     fun generateToken(userId: UUID): String {
         val now = Date()
-        val expiryDate = Date(now.time + expiration)
-
         return Jwts.builder()
             .subject(userId.toString())
             .issuedAt(now)
-            .expiration(expiryDate)
+            .expiration(Date(now.time + expiration))
             .signWith(signingKey)
             .compact()
     }

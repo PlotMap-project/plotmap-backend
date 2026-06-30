@@ -28,12 +28,12 @@ class YandexGptClient(
         val cleanedAgentId = properties.agentId.trim().removePrefix("\"").removeSuffix("\"")
         val cleanedOrganization = properties.organization.trim().removePrefix("\"").removeSuffix("\"")
 
-        log.info("Using agentId='{}', organization='{}'", cleanedAgentId, cleanedOrganization)
-
         val requestBody = mapOf(
             "prompt" to mapOf("id" to cleanedAgentId),
             "input" to text
         )
+
+        log.debug("Sending request to Yandex GPT agent, inputLength={}", text.length)
 
         val httpRequest = HttpRequest.newBuilder()
             .uri(URI.create("https://ai.api.cloud.yandex.net/v1/responses"))
@@ -52,14 +52,17 @@ class YandexGptClient(
             HttpResponse.BodyHandlers.ofString()
         )
 
+        log.debug("Yandex GPT response received: statusCode={}", response.statusCode())
+
         if (response.statusCode() < 200 || response.statusCode() > 299) {
-            log.error("Yandex Agent request failed: {} {}", response.statusCode(), response.body())
+            log.error(
+                "Yandex GPT request failed: statusCode={}",
+                response.statusCode()
+            )
             throw IllegalStateException(
-                "Yandex Agent request failed: ${response.statusCode()} ${response.body()}"
+                "Yandex Agent request failed with status: ${response.statusCode()}"
             )
         }
-
-        log.info("Full agent response body: {}", response.body())
 
         val root = objectMapper.readTree(response.body())
         val status = root.path("status").asText()
@@ -79,45 +82,34 @@ class YandexGptClient(
 
             throw ContentFilteredException("Chunk was filtered by model: $refusalText")
         }
+
         val outputText = extractOutputText(root)
-        log.info("Extracted output text length={}", outputText.length)
-        log.debug("Extracted output text: {}", outputText)
+        log.info("Yandex GPT generation completed: outputLength={}", outputText.length)
         return outputText
     }
 
     private fun extractOutputText(root: JsonNode): String {
         val directOutputText = root.path("output_text").asText().trim()
-        if (directOutputText.isNotBlank()) {
-            return directOutputText
-        }
+        if (directOutputText.isNotBlank()) return directOutputText
 
         val directCamelOutputText = root.path("outputText").asText().trim()
-        if (directCamelOutputText.isNotBlank()) {
-            return directCamelOutputText
-        }
+        if (directCamelOutputText.isNotBlank()) return directCamelOutputText
 
         val outputArray = root.path("output")
         if (outputArray.isArray) {
-            val parts = mutableListOf<String>()
-
-            outputArray.forEach { outputItem ->
-                val contentArray = outputItem.path("content")
-                if (contentArray.isArray) {
-                    contentArray.forEach { contentItem ->
-                        val type = contentItem.path("type").asText()
-                        val text = contentItem.path("text").asText()
-
-                        if (type == "output_text" && text.isNotBlank()) {
-                            parts.add(text)
-                        }
-                    }
+            val parts = outputArray
+                .flatMap { outputItem ->
+                    val contentArray = outputItem.path("content")
+                    if (contentArray.isArray) {
+                        contentArray
+                            .filter { it.path("type").asText() == "output_text" }
+                            .map { it.path("text").asText() }
+                            .filter { it.isNotBlank() }
+                    } else emptyList()
                 }
-            }
 
             val joined = parts.joinToString("\n").trim()
-            if (joined.isNotBlank()) {
-                return joined
-            }
+            if (joined.isNotBlank()) return joined
         }
 
         throw IllegalStateException("Agent response does not contain output text in expected format")

@@ -1,5 +1,6 @@
 package com.plotmap.backend.service
 
+import com.plotmap.backend.model.enum.ConnectionType
 import com.plotmap.backend.repository.jpa.CharacterRepository
 import com.plotmap.backend.repository.jpa.EventEdgeRepository
 import com.plotmap.backend.repository.jpa.EventRepository
@@ -23,11 +24,13 @@ class Neo4jSyncService(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
+    private val allowedRelationshipTypes = ConnectionType.entries.map { it.name }.toSet()
 
     fun syncProject(projectId: UUID) {
         log.info("Starting Neo4j sync for project {}", projectId)
 
-        val events = eventRepository.findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId)
+        val events = eventRepository
+            .findAllByProjectIdOrderByLevelAscOrderInLevelAsc(projectId)
         val edges = eventEdgeRepository.findAllByIdProject(projectId)
         val characters = characterRepository.findAllByProjectId(projectId)
         val eventToCharacters = eventToCharacterRepository.findAllByIdProject(projectId)
@@ -37,85 +40,93 @@ class Neo4jSyncService(
         driver.session().use { session ->
             session.executeWrite { tx ->
                 tx.run(
-                    """
-                    MATCH (n)
-                    WHERE n.projectId = ${'$'}projectId
-                    DETACH DELETE n
-                    """.trimIndent(),
+                    "MATCH (n) WHERE n.projectId = \$projectId DETACH DELETE n",
                     mapOf("projectId" to projectId.toString())
                 )
-                events.forEach { event ->
+                if (events.isNotEmpty()) {
                     tx.run(
                         """
+                        UNWIND ${'$'}rows AS row
                         CREATE (e:Event {
-                            id: ${'$'}id,
-                            projectId: ${'$'}projectId,
-                            title: ${'$'}title,
-                            description: ${'$'}description,
-                            level: ${'$'}level,
-                            orderInLevel: ${'$'}orderInLevel,
-                            suggestedSystemRole: ${'$'}role,
-                            status: ${'$'}status,
-                            color: ${'$'}color
+                            id: row.id,
+                            projectId: row.projectId,
+                            title: row.title,
+                            description: row.description,
+                            level: row.level,
+                            orderInLevel: row.orderInLevel,
+                            suggestedSystemRole: row.role,
+                            status: row.status,
+                            color: row.color
                         })
                         """.trimIndent(),
-                        mapOf(
-                            "id" to event.id.toString(),
-                            "projectId" to projectId.toString(),
-                            "title" to event.title,
-                            "description" to event.description,
-                            "level" to event.level,
-                            "orderInLevel" to event.orderInLevel,
-                            "role" to (event.suggestedSystemRole?.name ?: "REGULAR"),
-                            "status" to event.status.name,
-                            "color" to (event.color ?: "")
-                        )
+                        mapOf("rows" to events.map { event ->
+                            mapOf(
+                                "id" to event.id.toString(),
+                                "projectId" to projectId.toString(),
+                                "title" to event.title,
+                                "description" to event.description,
+                                "level" to event.level,
+                                "orderInLevel" to event.orderInLevel,
+                                "role" to (event.suggestedSystemRole?.name ?: "REGULAR"),
+                                "status" to event.status.name,
+                                "color" to (event.color ?: "")
+                            )
+                        })
                     )
                 }
-                characters.forEach { char ->
+                if (characters.isNotEmpty()) {
                     tx.run(
                         """
+                        UNWIND ${'$'}rows AS row
                         CREATE (c:Character {
-                            id: ${'$'}id,
-                            projectId: ${'$'}projectId,
-                            name: ${'$'}name,
-                            description: ${'$'}description,
-                            role: ${'$'}role
+                            id: row.id,
+                            projectId: row.projectId,
+                            name: row.name,
+                            description: row.description,
+                            role: row.role
                         })
                         """.trimIndent(),
-                        mapOf(
-                            "id" to char.id.toString(),
-                            "projectId" to projectId.toString(),
-                            "name" to char.name,
-                            "description" to char.description,
-                            "role" to char.role.name
-                        )
+                        mapOf("rows" to characters.map { char ->
+                            mapOf(
+                                "id" to char.id.toString(),
+                                "projectId" to projectId.toString(),
+                                "name" to char.name,
+                                "description" to char.description,
+                                "role" to char.role.name
+                            )
+                        })
                     )
                 }
-                storyArcs.forEach { arc ->
+                if (storyArcs.isNotEmpty()) {
                     tx.run(
                         """
+                        UNWIND ${'$'}rows AS row
                         CREATE (s:StoryArc {
-                            id: ${'$'}id,
-                            projectId: ${'$'}projectId,
-                            title: ${'$'}title,
-                            description: ${'$'}description
+                            id: row.id,
+                            projectId: row.projectId,
+                            title: row.title,
+                            description: row.description
                         })
                         """.trimIndent(),
-                        mapOf(
-                            "id" to arc.id.toString(),
-                            "projectId" to projectId.toString(),
-                            "title" to arc.title,
-                            "description" to arc.description
-                        )
+                        mapOf("rows" to storyArcs.map { arc ->
+                            mapOf(
+                                "id" to arc.id.toString(),
+                                "projectId" to projectId.toString(),
+                                "title" to arc.title,
+                                "description" to arc.description
+                            )
+                        })
                     )
                 }
                 edges.forEach { edge ->
                     val relType = edge.type.name
+                    check(relType in allowedRelationshipTypes) {
+                        "Unexpected relationship type: $relType"
+                    }
                     tx.run(
                         """
                         MATCH (a:Event {id: ${'$'}sourceId}), (b:Event {id: ${'$'}targetId})
-                        CREATE (a)-[:${relType} {description: ${'$'}desc}]->(b)
+                        CREATE (a)-[:$relType {description: ${'$'}desc}]->(b)
                         """.trimIndent(),
                         mapOf(
                             "sourceId" to edge.sourceEventId.toString(),
@@ -124,33 +135,42 @@ class Neo4jSyncService(
                         )
                     )
                 }
-                eventToCharacters.forEach { etc ->
+                if (eventToCharacters.isNotEmpty()) {
                     tx.run(
                         """
-                        MATCH (c:Character {id: ${'$'}charId}), (e:Event {id: ${'$'}eventId})
+                        UNWIND ${'$'}rows AS row
+                        MATCH (c:Character {id: row.charId}), (e:Event {id: row.eventId})
                         CREATE (c)-[:PARTICIPATES_IN]->(e)
                         """.trimIndent(),
-                        mapOf(
-                            "charId" to etc.idCharacter.toString(),
-                            "eventId" to etc.idEvent.toString()
-                        )
+                        mapOf("rows" to eventToCharacters.map { etc ->
+                            mapOf(
+                                "charId" to etc.idCharacter.toString(),
+                                "eventId" to etc.idEvent.toString()
+                            )
+                        })
                     )
                 }
-                storyArcToEvents.forEach { sate ->
+                if (storyArcToEvents.isNotEmpty()) {
                     tx.run(
                         """
-                        MATCH (s:StoryArc {id: ${'$'}arcId}), (e:Event {id: ${'$'}eventId})
+                        UNWIND ${'$'}rows AS row
+                        MATCH (s:StoryArc {id: row.arcId}), (e:Event {id: row.eventId})
                         CREATE (s)-[:CONTAINS]->(e)
                         """.trimIndent(),
-                        mapOf(
-                            "arcId" to sate.idArc.toString(),
-                            "eventId" to sate.idEvent.toString()
-                        )
+                        mapOf("rows" to storyArcToEvents.map { sate ->
+                            mapOf(
+                                "arcId" to sate.idArc.toString(),
+                                "eventId" to sate.idEvent.toString()
+                            )
+                        })
                     )
                 }
             }
         }
 
-        log.info("Neo4j sync completed for project {}", projectId)
+        log.info(
+            "Neo4j sync completed for project {}: {} events, {} characters, {} arcs, {} edges",
+            projectId, events.size, characters.size, storyArcs.size, edges.size
+        )
     }
 }

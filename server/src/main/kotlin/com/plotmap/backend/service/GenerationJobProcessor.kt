@@ -1,5 +1,6 @@
 package com.plotmap.backend.service
 
+import com.plotmap.backend.dto.ai.AiGraphResponse
 import com.plotmap.backend.model.enum.GenerationMode
 import com.plotmap.backend.model.enum.JobStatus
 import com.plotmap.backend.repository.jpa.GenerationJobRepository
@@ -25,19 +26,17 @@ class GenerationJobProcessor(
     @Async("aiGenerationExecutor")
     fun process(jobId: UUID) {
         try {
-            log.info("Start processing job {}", jobId)
+            log.info("Processing job {}", jobId)
 
             val (projectId, text, mode) = loadJobData(jobId)
-
             val result = aiGraphService.generateGraph(text)
-
             saveResult(jobId, projectId, result, mode)
 
-            log.info("Job {} completed", jobId)
+            log.info("Job {} completed successfully", jobId)
 
         } catch (e: Exception) {
             log.error("Job {} failed: {}", jobId, e.message, e)
-            markFailed(jobId, e.message ?: "Unknown error")
+            markFailed(jobId, "Generation failed. Please try again.")
         }
     }
 
@@ -48,21 +47,21 @@ class GenerationJobProcessor(
 
         val text = when (job.mode) {
             GenerationMode.REGENERATE_ALL -> {
-                val allChapters = projectChapterRepository
+                val chapters = projectChapterRepository
                     .findAllByProjectIdOrderByChapterOrderAsc(job.projectId)
 
-                if (allChapters.isEmpty()) {
+                if (chapters.isEmpty()) {
                     throw IllegalStateException(
-                        "Project ${job.projectId} has no chapters to regenerate"
+                        "No chapters found for project ${job.projectId}"
                     )
                 }
 
                 log.info(
                     "REGENERATE_ALL: combining {} chapters for project {}",
-                    allChapters.size, job.projectId
+                    chapters.size, job.projectId
                 )
 
-                allChapters.joinToString(separator = "\n\n") { chapter ->
+                chapters.joinToString(separator = "\n\n") { chapter ->
                     val title = chapter.title ?: "Глава ${chapter.chapterOrder}"
                     "$title.\n\n${chapter.text}"
                 }
@@ -72,10 +71,9 @@ class GenerationJobProcessor(
                 val chapterId = job.chapterId
                     ?: throw IllegalStateException("Job $jobId has no chapterId")
 
-                val chapter = projectChapterRepository.findById(chapterId)
+                projectChapterRepository.findById(chapterId)
                     .orElseThrow { IllegalStateException("Chapter $chapterId not found") }
-
-                chapter.text
+                    .text
             }
         }
 
@@ -83,29 +81,18 @@ class GenerationJobProcessor(
         job.updatedAt = Instant.now()
         generationJobRepository.save(job)
 
-        return JobData(
-            projectId = job.projectId,
-            text = text,
-            mode = job.mode
-        )
+        return JobData(projectId = job.projectId, text = text, mode = job.mode)
     }
 
     @Transactional
-    fun saveResult(
-        jobId: UUID,
-        projectId: UUID,
-        result: com.plotmap.backend.dto.ai.AiGraphResponse,
-        mode: GenerationMode
-    ) {
+    fun saveResult(jobId: UUID, projectId: UUID, result: AiGraphResponse, mode: GenerationMode) {
         when (mode) {
-            GenerationMode.INITIAL_GENERATION ->
+            GenerationMode.INITIAL_GENERATION,
+            GenerationMode.REGENERATE_ALL ->
                 aiProcessingService.saveInitialGeneration(projectId, result)
 
             GenerationMode.APPEND_CHAPTER ->
                 aiProcessingService.appendChapterGeneration(projectId, result)
-
-            GenerationMode.REGENERATE_ALL ->
-                aiProcessingService.saveInitialGeneration(projectId, result)
         }
 
         neo4jSyncService.syncProject(projectId)
@@ -113,9 +100,10 @@ class GenerationJobProcessor(
         val job = generationJobRepository.findById(jobId)
             .orElseThrow { IllegalArgumentException("Job $jobId not found") }
 
+        val now = Instant.now()
         job.status = JobStatus.COMPLETED
-        job.updatedAt = Instant.now()
-        job.completedAt = Instant.now()
+        job.updatedAt = now
+        job.completedAt = now
         generationJobRepository.save(job)
     }
 

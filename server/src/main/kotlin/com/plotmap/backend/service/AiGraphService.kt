@@ -48,7 +48,7 @@ class AiGraphService(
                 val recoveredResults = tryRecoverFilteredChunk(chunk, index + 1)
                 allResults += recoveredResults
             } catch (e: Exception) {
-                log.error("Chunk {} failed. First 500 chars:\n{}", index + 1, chunk.take(500), e)
+                log.error("Chunk {}/{} failed: {}", index + 1, chunks.size, e.message, e)
                 throw e
             }
         }

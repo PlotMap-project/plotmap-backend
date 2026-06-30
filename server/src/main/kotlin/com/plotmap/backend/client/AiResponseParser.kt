@@ -17,8 +17,11 @@ class AiResponseParser(
         return try {
             objectMapper.readValue(cleaned, AiGraphResponse::class.java)
         } catch (e: Exception) {
-            log.error("Failed to parse AI response: ${e.message}")
-            log.error("Raw text was: $rawText")
+            log.error(
+                "Failed to parse AI response: error={}, cleanedLength={}",
+                e.message,
+                cleaned.length
+            )
             throw IllegalStateException(
                 "AI returned invalid JSON that cannot be parsed: ${e.message}"
             )
@@ -37,14 +40,14 @@ class AiResponseParser(
         if (result.endsWith("```")) {
             result = result.removeSuffix("```").trim()
         }
+
         val jsonStart = result.indexOf('{')
         val jsonEnd = result.lastIndexOf('}')
 
         if (jsonStart == -1 || jsonEnd == -1) {
-            throw IllegalStateException(
-                "AI response does not contain valid JSON object"
-            )
+            throw IllegalStateException("AI response does not contain valid JSON object")
         }
+
         return result.substring(jsonStart, jsonEnd + 1)
     }
 }

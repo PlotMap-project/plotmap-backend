@@ -3,13 +3,13 @@ package com.plotmap.backend.controller
 import com.plotmap.backend.dto.request.CreateEventRequest
 import com.plotmap.backend.dto.request.UpdateEventRequest
 import com.plotmap.backend.dto.response.EventDto
-import com.plotmap.backend.exception.InvalidCredentialsException
 import com.plotmap.backend.service.EventService
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -21,18 +21,17 @@ import java.util.UUID
 @RequestMapping("/api/v1/projects/{projectId}/events")
 class EventController(
     private val eventService: EventService
-) {
+) : BaseController() {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createEvent(
         request: HttpServletRequest,
         @PathVariable projectId: String,
-        @RequestBody body: CreateEventRequest
+        @RequestBody @Valid body: CreateEventRequest
     ): EventDto {
-        val userId = getUserIdFromRequest(request)
         return eventService.createEvent(
-            userId = userId,
+            userId = getUserIdFromRequest(request),
             projectId = UUID.fromString(projectId),
             request = body
         )
@@ -45,9 +44,8 @@ class EventController(
         @PathVariable eventId: String,
         @RequestBody body: UpdateEventRequest
     ): EventDto {
-        val userId = getUserIdFromRequest(request)
         return eventService.updateEvent(
-            userId = userId,
+            userId = getUserIdFromRequest(request),
             projectId = UUID.fromString(projectId),
             eventId = UUID.fromString(eventId),
             request = body
@@ -61,17 +59,10 @@ class EventController(
         @PathVariable projectId: String,
         @PathVariable eventId: String
     ) {
-        val userId = getUserIdFromRequest(request)
         eventService.deleteEvent(
-            userId = userId,
+            userId = getUserIdFromRequest(request),
             projectId = UUID.fromString(projectId),
             eventId = UUID.fromString(eventId)
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

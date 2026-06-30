@@ -18,7 +18,7 @@ import java.util.UUID
 class JobController(
     private val generationJobRepository: GenerationJobRepository,
     private val userToProjectRepository: UserToProjectRepository
-) {
+): BaseController() {
     @GetMapping("/{jobId}")
     fun getJobStatus(
         request: HttpServletRequest,
@@ -48,15 +48,8 @@ class JobController(
             projectId = job.projectId.toString(),
             status = job.status.name,
             errorMessage = job.errorMessage,
-            result = null,
             createdAt = job.createdAt,
             updatedAt = job.updatedAt
         )
-    }
-
-    private fun getUserIdFromRequest(request: HttpServletRequest): UUID {
-        val userId = request.getAttribute("userId") as? String
-            ?: throw InvalidCredentialsException("Missing or invalid token")
-        return UUID.fromString(userId)
     }
 }

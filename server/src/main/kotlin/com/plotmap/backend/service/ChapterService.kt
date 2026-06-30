@@ -24,10 +24,12 @@ import com.plotmap.backend.repository.jpa.StoryArcRepository
 import com.plotmap.backend.repository.jpa.StoryArcToEventRepository
 import com.plotmap.backend.repository.jpa.UserToProjectRepository
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.util.UUID
 
@@ -50,21 +52,20 @@ class ChapterService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     fun getChapters(userId: UUID, projectId: UUID): List<ChapterDto> {
-        ensureUserHasAccessToProject(userId, projectId)
-
+        ensureAccess(userId, projectId)
         return projectChapterRepository
             .findAllByProjectIdOrderByChapterOrderAsc(projectId)
             .map { it.toDto() }
     }
 
     fun getChapterById(userId: UUID, projectId: UUID, chapterId: UUID): ChapterDetailDto {
-        ensureUserHasAccessToProject(userId, projectId)
+        ensureAccess(userId, projectId)
 
         val chapter = projectChapterRepository.findById(chapterId)
-            .orElseThrow { ProjectNotFoundException("Chapter $chapterId not found") }
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found") }
 
         if (chapter.projectId != projectId) {
-            throw ProjectNotFoundException("Chapter $chapterId not found in project $projectId")
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found")
         }
 
         return chapter.toDetailDto()
@@ -72,16 +73,8 @@ class ChapterService(
 
     @Transactional
     fun addChapter(userId: UUID, projectId: UUID, request: AddChapterRequest): AddChapterResponse {
-        ensureUserHasAccessToProject(userId, projectId)
-
-        require(request.text.isNotBlank()) { "Chapter text must not be empty" }
-
-        val project = projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
-
-        require(project.type == ProjectType.AI_GENERATED) {
-            "Cannot add chapters to a MANUAL project"
-        }
+        ensureAccess(userId, projectId)
+        ensureAiProject(projectId)
 
         val nextOrder = projectChapterRepository.countByProjectId(projectId) + 1
 
@@ -94,27 +87,9 @@ class ChapterService(
             )
         )
 
-        val job = generationJobRepository.save(
-            GenerationJob(
-                projectId = projectId,
-                chapterId = chapter.id,
-                mode = GenerationMode.APPEND_CHAPTER,
-                status = JobStatus.PENDING
-            )
-        )
+        val job = scheduleJob(projectId, chapter.id, GenerationMode.APPEND_CHAPTER)
 
-        TransactionSynchronizationManager.registerSynchronization(
-            object : TransactionSynchronization {
-                override fun afterCommit() {
-                    generationJobProcessor.process(job.id)
-                }
-            }
-        )
-
-        return AddChapterResponse(
-            chapter = chapter.toDto(),
-            job = jobToResponse(job)
-        )
+        return AddChapterResponse(chapter = chapter.toDto(), job = job.toResponse())
     }
 
     @Transactional
@@ -124,36 +99,42 @@ class ChapterService(
         chapterId: UUID,
         request: UpdateChapterRequest
     ): AddChapterResponse {
-        ensureUserHasAccessToProject(userId, projectId)
-
-        require(request.text.isNotBlank()) { "Chapter text must not be empty" }
-
-        val project = projectRepository.findById(projectId)
-            .orElseThrow { ProjectNotFoundException("Project $projectId not found") }
-
-        require(project.type == ProjectType.AI_GENERATED) {
-            "Cannot update chapters in a MANUAL project"
-        }
+        ensureAccess(userId, projectId)
+        ensureAiProject(projectId)
 
         val chapter = projectChapterRepository.findById(chapterId)
-            .orElseThrow { ProjectNotFoundException("Chapter $chapterId not found") }
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found") }
 
         if (chapter.projectId != projectId) {
-            throw ProjectNotFoundException("Chapter $chapterId not found in project $projectId")
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found")
         }
 
-        chapter.text = request.text
+        request.text?.let {
+            require(it.isNotBlank()) { "Chapter text must not be empty" }
+            chapter.text = it
+        }
         request.title?.let { chapter.title = it.trim() }
+        chapter.updatedAt = Instant.now()
         projectChapterRepository.save(chapter)
 
-        log.info("Updated chapter {} in project {}", chapterId, projectId)
+        log.info("Updated chapter {}, scheduling REGENERATE_ALL for project {}", chapterId, projectId)
         clearProjectGraph(projectId)
 
+        val job = scheduleJob(projectId, chapter.id, GenerationMode.REGENERATE_ALL)
+
+        return AddChapterResponse(chapter = chapter.toDto(), job = job.toResponse())
+    }
+
+    private fun scheduleJob(
+        projectId: UUID,
+        chapterId: UUID,
+        mode: GenerationMode
+    ): GenerationJob {
         val job = generationJobRepository.save(
             GenerationJob(
                 projectId = projectId,
-                chapterId = chapter.id,
-                mode = GenerationMode.REGENERATE_ALL,
+                chapterId = chapterId,
+                mode = mode,
                 status = JobStatus.PENDING
             )
         )
@@ -166,19 +147,14 @@ class ChapterService(
             }
         )
 
-        return AddChapterResponse(
-            chapter = chapter.toDto(),
-            job = jobToResponse(job)
-        )
+        return job
     }
 
     private fun clearProjectGraph(projectId: UUID) {
         log.info("Clearing graph for project {}", projectId)
-
         eventToTagRepository.deleteAllByIdProject(projectId)
         eventToCharacterRepository.deleteAllByIdProject(projectId)
         storyArcToEventRepository.deleteAllByIdProject(projectId)
-
         eventEdgeRepository.deleteAllByIdProject(projectId)
         eventRepository.deleteAllByProjectId(projectId)
         storyArcRepository.deleteAllByProjectId(projectId)
@@ -186,41 +162,44 @@ class ChapterService(
         log.info("Graph cleared for project {}", projectId)
     }
 
-    private fun jobToResponse(job: GenerationJob): JobStatusResponse {
-        return JobStatusResponse(
-            jobId = job.id.toString(),
-            projectId = job.projectId.toString(),
-            status = job.status.name,
-            errorMessage = job.errorMessage,
-            result = null,
-            createdAt = job.createdAt,
-            updatedAt = job.updatedAt
-        )
-    }
-
-    private fun ensureUserHasAccessToProject(userId: UUID, projectId: UUID) {
-        val exists = userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)
-        if (!exists) {
+    private fun ensureAccess(userId: UUID, projectId: UUID) {
+        if (!userToProjectRepository.existsByIdUserAndIdProject(userId, projectId)) {
             throw ProjectNotFoundException("Project not found")
         }
     }
 
-    private fun ProjectChapter.toDto(): ChapterDto {
-        return ChapterDto(
-            id = this.id.toString(),
-            chapterOrder = this.chapterOrder,
-            title = this.title,
-            createdAt = this.createdAt
-        )
+    private fun ensureAiProject(projectId: UUID) {
+        val project = projectRepository.findById(projectId)
+            .orElseThrow { ProjectNotFoundException("Project not found") }
+        if (project.type != ProjectType.AI_GENERATED) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "This operation is only available for AI-generated projects"
+            )
+        }
     }
 
-    private fun ProjectChapter.toDetailDto(): ChapterDetailDto {
-        return ChapterDetailDto(
-            id = this.id.toString(),
-            chapterOrder = this.chapterOrder,
-            title = this.title,
-            text = this.text,
-            createdAt = this.createdAt
-        )
-    }
+    private fun GenerationJob.toResponse() = JobStatusResponse(
+        jobId = id.toString(),
+        projectId = projectId.toString(),
+        status = status.name,
+        errorMessage = errorMessage,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+
+    private fun ProjectChapter.toDto() = ChapterDto(
+        id = id.toString(),
+        chapterOrder = chapterOrder,
+        title = title,
+        createdAt = createdAt
+    )
+
+    private fun ProjectChapter.toDetailDto() = ChapterDetailDto(
+        id = id.toString(),
+        chapterOrder = chapterOrder,
+        title = title,
+        text = text,
+        createdAt = createdAt
+    )
 }

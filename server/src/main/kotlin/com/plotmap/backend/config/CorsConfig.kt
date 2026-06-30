@@ -3,22 +3,30 @@ package com.plotmap.backend.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
-import org.springframework.web.filter.CorsFilter
 
 @Configuration
-class CorsConfig {
+class CorsConfig(
+    private val corsProperties: CorsProperties
+) {
 
     @Bean
-    fun corsFilter(): CorsFilter {
-        val config = CorsConfiguration()
-        config.addAllowedOrigin("*")
-        config.addAllowedHeader("*")
-        config.addAllowedMethod("*")
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        require(corsProperties.allowedOrigins.isNotEmpty()) {
+            "app.cors.allowed-origins must not be empty"
+        }
 
-        val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", config)
+        val config = CorsConfiguration().apply {
+            allowedOrigins = corsProperties.allowedOrigins
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            allowedHeaders = listOf("Authorization", "Content-Type")
+            allowCredentials = false
+            maxAge = 3600
+        }
 
-        return CorsFilter(source)
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/**", config)
+        }
     }
 }
