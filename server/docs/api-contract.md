@@ -28,8 +28,7 @@ Authorization: Bearer <token>
 ### Response 200
 ```json
 {
-  "status": "OK, we will win",
-  "message": "PlotMap backend is running smoothly"
+  "status": "OK"
 }
 ```
 
@@ -63,33 +62,6 @@ Authorization: Bearer <token>
 ### Возможные ошибки
 - `400` — невалидные данные
 - `409` — email уже занят
-
----
-
-## POST /auth/login
-
-Основная ручка логина по email.
-
-### Request
-```json
-{
-  "email": "writer@example.com",
-  "password": "securePassword123"
-}
-```
-
-### Response 200
-```json
-{
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "writer@example.com",
-  "name": "Лев Толстой",
-  "token": "eyJhbGciOiJIUzUxMiJ9..."
-}
-```
-
-### Возможные ошибки
-- `401` — неверный email или пароль
 
 ---
 
@@ -397,11 +369,10 @@ Authorization: Bearer <token>
 {
   "jobId": "job-uuid",
   "projectId": "project-uuid",
-  "status": "PROCESSING",
+  "status": "PENDING",
   "errorMessage": null,
-  "result": null,
-  "createdAt": "2026-06-25T07:02:43.672844Z",
-  "updatedAt": "2026-06-25T07:03:10.810377Z"
+  "createdAt": "...",
+  "updatedAt": "..."
 }
 ```
 
@@ -410,9 +381,6 @@ Authorization: Bearer <token>
 - `PROCESSING`
 - `COMPLETED`
 - `FAILED`
-
-### Примечание
-Поле `result` сейчас в ответе есть, но фактически пока не используется и обычно равно `null`.
 
 ### Возможные ошибки
 - `404` — job не найдена
@@ -447,6 +415,27 @@ Authorization: Bearer <token>
 ### Примечание
 Ручка в первую очередь нужна для AI-проектов.  
 У manual-проектов список глав обычно пустой.
+
+---
+
+## GET /projects/{projectId}/chapters/{chapterId}
+
+Получить содержимое конкретной главы (включая текст).
+
+### Headers
+```text
+Authorization: Bearer <token>
+```
+### Response 200
+```json
+{
+  "id": "chapter-uuid",
+  "chapterOrder": 1,
+  "title": "Глава 1",
+  "text": "Полный текст главы...",
+  "createdAt": "2026-06-25T07:02:43.665513Z"
+}
+```
 
 ---
 
@@ -964,6 +953,7 @@ Authorization: Bearer <token>
 
 ## CharacterRole
 - `PROTAGONIST`
+- `ANTAGONIST`
 - `MAJOR`
 - `SUPPORTING`
 - `EPISODIC`
@@ -1021,7 +1011,4 @@ GET /projects/{projectId}
 ```
 
 чтобы получить обновлённый граф.
-
-## 4. Поле result в job
-Поле `result` есть в модели `JobStatusResponse`, но сейчас в API фактически не используется и обычно равно `null`.
 ```
